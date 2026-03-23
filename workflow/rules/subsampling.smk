@@ -13,7 +13,7 @@ rule subsample_dedup_bam:
     params:
         target_depth = config.get("subsample_depth", 15),
         mapq = config.get("mapQ", 30)
-    log: "logs/mapping/subsample_dedup/{source}/{sample_id}.subsample_dedup.log"
+    log: "logs/mapping/subsample_dedup/{source}/{sample_id}.{ref_name}.subsample_dedup.log"
     conda: "../envs/vg.yaml"
     threads: 4
     shell:
@@ -49,7 +49,7 @@ rule subsample_final_bam:
     params:
         target_depth = config.get("subsample_depth", 15),
         mapq = config.get("mapQ", 30),
-    log: "logs/mapping/subsample_final/{source}/{sample_id}.{stage}.subsample_final.log"
+    log: "logs/mapping/subsample_final/{source}/{sample_id}.{ref_name}.{stage}.subsample_final.log"
     conda: "../envs/vg.yaml"
     threads: 4
     shell:

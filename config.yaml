@@ -5,16 +5,16 @@
 #Name for the reference, appended to all output files
 ref_name: "DTOLREF"
 #full path to reference without the .fa extension
-reference: "/storageToo/PROJECTS/Rebecca/WW/ref_genome/Leptidea_sinapis-GCA_905404315.1-softmasked"
+reference: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ref_genome/Leptidea_sinapis-GCA_905404315.1-softmasked"
 #Prefix of variation graph
-vg_prefix: "/storageToo/PROJECTS/Rebecca/WW/WWpaper/Analysis/ProcessedData/znolenApproach/vgconstruct/DTOLREF.modvars"
+vg_prefix: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/vgconstruct//DTOLREF.modvars"
 #A catalog of snps for masking 5' and 3' ends of
 #historical reads using bamrefine algorithm. Can be generated for snps used
 #to make variation graph, can also buse to retain sites as all our found within the site_filter_bed
-snp_mask_bed: "/storageToo/PROJECTS/Rebecca/WW/WWpaper/Analysis/ProcessedData/znolenApproach/vgconstruct/Modern_DTOLREF.filtered_mindp6-allsites-jointcall.vcf.snps.bed"
+snp_mask_bed: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/vgconstruct/vgconstruct/Modern_DTOLREF.filtered_mindp6-allsites-jointcall.vcf.snps.bed"
 #Alternative to the snp_mask_bed, Site filter bed
 # a bed file for target regions to retain, e.g. no repeats, no sex chromosomes, no mtDNA, no collapsed regions, no regions with low mappability, etc. Can be generated using bedtools intersect -v with a bed file of all sites and a bed file of sites to exclude
-site_filter_bed: "/storageToo/PROJECTS/Rebecca/WW/ref_genome/ZNolen_site_filters/Leptidea_sinapis-GCA_905404315.1-softmasked_autosomes_minScaf1MB_repma_snpabble_collma.bed"
+site_filter_bed: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ref_genome/ZNolen_site_filters/Leptidea_sinapis-GCA_905404315.1-softmasked_autosomes_minScaf1MB_repma_snpabble_collma.bed"
 
 
 
