@@ -1,0 +1,39 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+description: "Unified schema for both modern and historical sample sheets"
+type: object
+required:
+  - sample_id
+  - run_id
+  - fq1
+  - rgGroup_ID
+  - platform
+# Note: fq2 is NOT in the required list so it can be missing entirely (e.g. for historical)
+properties:
+  sample_id:
+    type: string
+    pattern: "^[a-zA-Z0-9_-]+$"
+  run_id:
+    type: string
+    pattern: "^[a-zA-Z0-9_-]+$"
+    description: >
+      Unique identifier for the sequencing run includes information on index of sample and library. 
+      Provided as IndexID_LibraryID (e.g., S123_L001). Same samples with the same index (same PCR library)
+      but sequenced on different lanes are merged before dedupliction. Same sampqles with different indices 
+      (different PCR libraries) are merged after deduplication but before masking (historical samples) and
+      clipping (modern samples).
+  fq1:
+    type: string
+    description: "Path to R1 fastq"
+  fq2:
+    # Allows the column to exist but be empty (NA/null) or a string path
+    type: ["string", "null"]
+    description: "Path to R2 fastq; can be NA for historical samples"
+  rgGroup_ID:
+    type: string
+    description: >
+      Read Group ID for the different sequencing runs of the same sample. 
+      This is used adding read groups to individual mapped fastq files before merging. 
+      Provides as FlowCellID_LaneID_IndexID information. For example, if the same PCR index 
+      is sequenced multiple times only the lane number needs to be different (e.g., 01_L1, 01_L2, etc.)"
+  platform:
+    type: string

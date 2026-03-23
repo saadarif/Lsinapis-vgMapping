@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - vg =1.70.0
+  - samtools =1.21
+  - picard =3.2

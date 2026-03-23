@@ -1,0 +1,72 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+description: "Configuration schema for the VG mapping pipeline"
+type: object
+
+# Define required top-level keys
+required:
+  - ref_name
+  - reference
+  - vg_prefix
+  - snp_mask_bed
+  - modern_csv
+  - historical_csv
+  - params
+
+properties:
+  ref_name:
+    type: string
+    description: "Short name for the reference genome used in naming outputs."
+  
+  reference:
+    type: string
+    description: "Full path to the reference FASTA (without .fa extension)."
+
+  vg_prefix:
+    type: string
+    description: "Full path prefix for the variation graph (.xg, .gcsa files)."
+
+  snp_mask_bed:
+    type: string
+    description: "Path to the BED file containing SNPs for masking."
+
+  modern_csv:
+    type: string
+    description: "Path to the TSV/CSV metadata for modern samples."
+
+  historical_csv:
+    type: string
+    description: "Path to the TSV/CSV metadata for historical samples."
+
+  run_multiqc:
+    type: boolean
+    default: true
+
+  mapQ:
+    type: integer
+    minimum: 0
+    maximum: 30
+    default: 30
+
+  baseQ:
+    type: integer
+    minimum: 0
+    maximum: 30
+    default: 20
+
+  params:
+    type: object
+    properties:
+      bamrefine:
+        type: object
+        required:
+          - pmd_length_thresholds
+        properties:
+          pmd_length_thresholds:
+            type: string
+            pattern: "^--pmd-length-threshold .+$"
+            description: "Must include the flag and threshold values."
+
+  threads_mapping:
+    type: integer
+    minimum: 1
+    default: 16

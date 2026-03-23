@@ -1,0 +1,5 @@
+sample_id	run_id	fq1	fq2	rgGroup_ID	platform
+M9	01_L2	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/modern/trimming/M9_01_L2_R1_trimmed.fastq.gz	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/modern/trimming/M9_01_L2_R2_trimmed.fastq.gz	HMHL7DSX7_L2_01	novoseq
+M9	01_L4	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/modern/trimming/M9_01_L4_R1_trimmed.fastq.gz	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/modern/trimming/M9_01_L4_R2_trimmed.fastq.gz	H7MFGDSX7_L4_01	novoseq
+M10	01_L1	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/modern/trimming/M10_01_L1_R1_trimmed.fastq.gz	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/modern/trimming/M10_01_L1_R2_trimmed.fastq.gz	HMHL7DSX7_L1_01	novoseq
+M1	01_L1	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/modern/trimming/M1_01_L1_R1_trimmed.fastq.gz	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/modern/trimming/M1_01_L1_R2_trimmed.fastq.gz	HMHL7DSX7_L1_01	novose
