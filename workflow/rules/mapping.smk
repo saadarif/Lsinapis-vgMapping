@@ -276,7 +276,7 @@ rule modern_clip_overlap:
     benchmark: "benchmarks/mapping/clip_overlap/{sample_id}.{ref_name}.json"
     shell: 
       """
-        bam clipOverlap --in {input} --out {output.bam} --stats  --stats 2> {output.log}
+        bam clipOverlap --in {input} --out {output.bam} --stats 2> {output.log}
         samtools index {output.bam}
       """
 
@@ -287,6 +287,7 @@ rule historical_mask:
     output: 
         bam="results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam",
         bai="results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam.bai",
+        stats="results/mapping/historical/stats/merged_dedup_merged_masked/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam_bamrefine_stats.tx"
     log: "logs/mapping/historical_mask/{sample_id}.{ref_name}.merged.dedup.merged.masked.log"
     benchmark: "benchmarks/mapping/historical_mask/{sample_id}.{ref_name}.json"
     params: 
@@ -297,6 +298,9 @@ rule historical_mask:
         """ 
         bamrefine --snps {input.bed} --threads {threads} {params.extra} --add-tags {input.bam} {output.bam} &> {log}
         samtools index {output.bam}
+
+        # Move the auto-generated stats file to the new target directory)
+        mv results/mapping/historical/{wildcards.sample_id}.{wildcards.ref_name}.merged.dedup.merged.masked.bam_bamrefine_stats.txt {output.stats}
         """
 # ==============================================================================
 # 3. QUALITY CONTROL & REPORTING
@@ -309,15 +313,15 @@ rule bam_stats_dedup_merged:
     conda:  "../envs/vg.yaml"
     shell:  "samtools stats {input} 1> {output} 2> {log}"
 
-rule mapdamage_historical_dedup:
-    """Runs mapDamage on historical deduplicated BAMs and stores results in the source-specific QC folder.
-    No rescaling is performed at this point"""
+rule mapdamage_dedup:
+    """Runs mapDamage on historical and modern deduplicated BAMs and stores results in the source-specific QC folder.
+    No rescaling is performed at this point. Only 50% of random reads are sampled to speed up the process."""
     input: 
-        bam = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.bam",
-        bai = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.bam.bai",
+        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.bam",
+        bai = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.bam.bai",
         ref = f"{config['reference']}.fa"
-    output: dir = directory("results/mapping/historical/stats/merged_dedup_merged/mapdamage/{sample_id}.{ref_name}")
-    log: "logs/mapping/mapdamage/{sample_id}.{ref_name}.merged.dedup.merged.mapdamage.log"
+    output: dir = directory("results/mapping/{source}/stats/merged_dedup_merged/mapdamage/{sample_id}.{ref_name}")
+    log: "logs/mapping/mapdamage/{source}/{sample_id}.{ref_name}.merged.dedup.merged.mapdamage.log"
     conda: "../envs/mapdamage.yaml"
     shell: "mapDamage -i {input.bam} -r {input.ref} -d {output.dir} --downsample=0.5 --merge-reference-sequences &> {log}"
 
@@ -348,17 +352,17 @@ rule bam_stats_final:
     conda: "../envs/vg.yaml"
     shell: "samtools stats {input} 1> {output} 2> {log}"
 
-rule mapdamage_historical_masked:
-    """Runs mapDamage on final masked BAMs for historical samples and stores results in the source-specific QC folder.
-    No rescaling is performed at this point."""
-    input: 
-        bam = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam",
-        bai = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam.bai",
-        ref = f"{config['reference']}.fa"
-    output: dir = directory("results/mapping/historical/stats/merged_dedup_merged_masked/mapdamage/{sample_id}.{ref_name}")
-    log: "logs/mapping/mapdamage/{sample_id}.{ref_name}.merged.dedup.merged.masked.mapdamage.log"
-    conda: "../envs/mapdamage.yaml"
-    shell: "mapDamage -i {input.bam} -r {input.ref} -d {output.dir} --downsample=0.5 --merge-reference-sequences &> {log}"
+# rule mapdamage_historical_masked:
+#     """Runs mapDamage on final masked BAMs for historical samples and stores results in the source-specific QC folder.
+#     No rescaling is performed at this point. Only 50% of random reads are sampled to speed up the process."""
+#     input: 
+#         bam = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam",
+#         bai = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam.bai",
+#         ref = f"{config['reference']}.fa"
+#     output: dir = directory("results/mapping/historical/stats/merged_dedup_merged_masked/mapdamage/{sample_id}.{ref_name}")
+#     log: "logs/mapping/mapdamage/{sample_id}.{ref_name}.merged.dedup.merged.masked.mapdamage.log"
+#     conda: "../envs/mapdamage.yaml"
+#     shell: "mapDamage -i {input.bam} -r {input.ref} -d {output.dir} --downsample=0.5 --merge-reference-sequences &> {log}"
 
 rule calculate_depth_final:
     """Calculates mean depth for the final clipped/masked BAM files."""

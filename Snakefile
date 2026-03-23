@@ -104,10 +104,10 @@ def get_final_targets(wildcards):
 
         #3. MAPDAMAGE TARGETS (Historical Only) 
         if  src == "historical":
-            # mapDamage run 1: Before masking
-            targets.append(f"results/mapping/historical/stats/merged_dedup_merged/mapdamage/{sid}.{REF_NAME}")
+            # mapDamage run 1: Before masking run for both historical and modern to allow comparison (but only historical will have the stats file since modern won't be run through mapDamage)
+            targets.append(f"results/mapping/{src}/stats/merged_dedup_merged/mapdamage/{sid}.{REF_NAME}")
             # mapDamage run 2: After masking
-            targets.append(f"results/mapping/historical/stats/merged_dedup_merged_masked/mapdamage/{sid}.{REF_NAME}")
+            #targets.append(f"results/mapping/historical/stats/merged_dedup_merged_masked/mapdamage/{sid}.{REF_NAME}")
 
     # 4. MultiQC targets for Dedup and final BAMS
     for src in samples_df['source'].unique():
@@ -118,6 +118,7 @@ def get_final_targets(wildcards):
 
     # 5. Add subsampled BAM targets for each sample and stage, if any
     subsample_samples = config.get("subsample_samples", [])
+    MAPQ = config["mapQ"]
     target_dp = config.get("subsample_depth", 15) # Fetch the depth
     if subsample_samples:
         for sid in subsample_samples:
@@ -125,10 +126,10 @@ def get_final_targets(wildcards):
             src = samples_df[samples_df['sample_id'] == sid]['source'].iloc[0]
             stage = "masked" if src == "historical" else "clipped"
             
-            # Request the subsampled deduplicated BAM
-            targets.append(f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged.subs{target_dp}.regfilt.Q20.q30.bam")
-            # Request the subsampled final stage BAM
-            targets.append(f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.subs{target_dp}.regfilt.Q20.q30.bam")
+            # Request the subsampled deduplicated BAM depth file to trigger the calculate_subs_depth_dedup rule
+            targets.append(f"results/mapping/{src}/stats/merged_dedup_merged/subsampled/{sid}.{REF_NAME}.merged.dedup.merged.subs{target_dp}.q{MAPQ}.regfilt.Q20.q30.depth.txt")
+            # Request the subsampled final stage BAM depth file to trigger the calculate_subs_depth_dedup rule for the final BAMs
+            targets.append(f"results/mapping/{src}/stats/merged_dedup_merged_{stage}/subsampled/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.subs{target_dp}.q{MAPQ}.regfilt.Q20.q30.depth.txt")
     
     # 6. Add Genotyping Targets if enabled in config
     if config.get("run_genotyping", False):

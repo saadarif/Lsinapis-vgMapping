@@ -39,7 +39,7 @@ baseQ: 20
 
 params: 
   bamrefine:
-    pmd_length_thresholds: "--pmd-length-threshold 3,15" #based on damage profiles of historical sample
+    pmd_length_thresholds: "--pmd-length-threshold 2,15" #based on damage profiles of historical sample
 
   run_genotyping:
     minDP: 6

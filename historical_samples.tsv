@@ -1,4 +1,4 @@
 sample_id	run_id	fq1	fq2	rgGroup_ID	platform
-NHM4037830096	01_L2	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/historical/trimming/NHM4037830096_01_L2_trimmed_merged.fastq.gz	NA	22FCYWLT3_L2_01	     novaseq
-NHM4037830096	01_L3	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/historical/trimming/NHM4037830096_01_L3_trimmed_merged.fastq.gz	NA   22C5Y3LT3_L3_01	novoseq
-OX24	01_L3	/storageToo/PROJECTS/Rebecca/WW/WWpaper/DToL_Generode/results/historical/trimming/OX24_01_L3_trimmed_merged.fastq.gz	NA	22FCYWLT3_L3_01       novaseq	
+NHM4037830096	01_L2	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/historical/NHM4037830096_01_L2_trimmed_merged.fastq.gz	NA	22FCYWLT3_L2_01	     novaseq
+NHM4037830096	01_L3	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/historical/NHM4037830096_01_L3_trimmed_merged.fastq.gz	NA   22C5Y3LT3_L3_01	novoseq
+OX24	01_L3	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/historical/OX24_01_L3_trimmed_merged.fastq.gz	NA	22FCYWLT3_L3_01       novaseq	
