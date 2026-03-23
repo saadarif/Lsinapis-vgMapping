@@ -9,8 +9,8 @@ rule subsample_dedup_bam:
         bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.bam",
         depth = "results/mapping/{source}/stats/merged_dedup_merged/{sample_id}.{ref_name}.merged.dedup.merged.regfilt.Q20.q30.depth.txt"
     output:
-        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q." + str(MAPQ) + ".bam",
-        bai = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q." + str(MAPQ) + ".bam.bai"
+        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q" + str(MAPQ) + ".bam",
+        bai = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q" + str(MAPQ) + ".bam.bai"
     params:
         target_depth = TARGET_DP,
         mapq = MAPQ,
@@ -42,15 +42,15 @@ rule subsample_dedup_bam:
 rule calculate_subs_depth_dedup:
     """Calculates mean depth for the subsampled deduplicated BAM file over specified BED regions."""
     input:
-        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q." + str(MAPQ) + ".bam",
+        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q" + str(MAPQ) + ".bam",
     output:
-        depth = "results/mapping/{source}/stats/merged_dedup_merged/subsampled/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q." + str(MAPQ) + ".regfilt.Q20.q30.depth.txt"
+        depth = "results/mapping/{source}/stats/merged_dedup_merged/subsampled/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q" + str(MAPQ) + ".regfilt.Q20.q30.depth.txt"
     params:
         bed = config.get("site_filter_bed", None),  # BED file for filtering sites, if provided
         mapQ = MAPQ,
         baseQ = config.get("baseQ", 20)
     conda: "../envs/vg.yaml"  # Reusing  environment that contains samtools
-    log: "logs/mapping/depth/{source}/subsampled/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q." + str(MAPQ) + ".regfilt.Q20.q30.depth.log"
+    log: "logs/mapping/depth/{source}/subsampled/{sample_id}.{ref_name}.merged.dedup.merged.subs" + str(TARGET_DP) +".q" + str(MAPQ) + ".regfilt.Q20.q30.depth.log"
     threads: 2
     shell:
         """
@@ -64,8 +64,8 @@ rule subsample_final_bam:
         bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.bam",
         depth = "results/mapping/{source}/stats/merged_dedup_merged_{stage}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.regfilt.Q20.q30.depth.txt"
     output:
-        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q." + str(MAPQ) + ".bam",
-        bai = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q." + str(MAPQ) + ".bam.bai"
+        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q" + str(MAPQ) + ".bam",
+        bai = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q" + str(MAPQ) + ".bam.bai"
     params:
         target_depth = TARGET_DP,
         mapq = MAPQ,
@@ -93,15 +93,15 @@ rule subsample_final_bam:
 rule calculate_subs_depth_final:
     """Calculates mean depth for the final clipped/masked BAM files."""
     input:
-        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q." + str(MAPQ) + ".bam",
+        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q" + str(MAPQ) + ".bam",
     output:
-        depth = "results/mapping/{source}/stats/merged_dedup_merged_{stage,clipped|masked}/subsampled/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q." + str(MAPQ) + ".regfilt.Q20.q30.depth.txt"
+        depth = "results/mapping/{source}/stats/merged_dedup_merged_{stage,clipped|masked}/subsampled/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q" + str(MAPQ) + ".regfilt.Q20.q30.depth.txt"
     params:
         bed = config.get("site_filter_bed", None),  # BED file for filtering sites, if provided
         mapQ = MAPQ,
         baseQ = config.get("baseQ", 20)
     conda: "../envs/vg.yaml"
-    log: "logs/mapping/depth/subsampled/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q." + str(MAPQ) + ".regfilt.Q20.q30.depth.log"
+    log: "logs/mapping/depth/subsampled/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.subs" + str(TARGET_DP) + ".q" + str(MAPQ) + ".regfilt.Q20.q30.depth.log"
     threads: 2
     shell:
         """

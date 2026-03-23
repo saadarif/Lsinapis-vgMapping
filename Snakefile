@@ -21,8 +21,8 @@ wildcard_constraints:
 
 
 #ADD rules here
-include: "workflow/rules/mapping.smk"
-include: "workflow/rules/subsampling.smk"
+include: "workflow/rules/1.1_mapping.smk"
+include: "workflow/rules/1.2_subsampling.smk"
 #include: "workflow/rules/2_call_genotypes.smk"
 #include: "workflow/rules/2_alt_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
 

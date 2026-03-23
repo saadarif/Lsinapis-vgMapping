@@ -26,10 +26,11 @@ def get_bam_for_genotyping(wildcards):
     
     subsample_samples = config.get("subsample_samples", [])
     target_dp = config.get("subsample_depth", 15)
+    mapq = config["mapQ"]
     
     if sid in subsample_samples:
         # Return the subsampled BAM
-        return f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.subs{target_dp}.sitefilt.Q20.q30.bam"
+        return f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.subs{target_dp}.q{mapq}.bam"
     else:
         # Return the standard final BAM
         return f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.bam"
@@ -52,9 +53,9 @@ def get_all_bams_for_joint_calling(wildcards):
     for sid in KEEP_SAMPLES:
         src = VALID_SAMPLES_DF[VALID_SAMPLES_DF['sample_id'] == sid]['source'].iloc[0]
         stage = "masked" if src == "historical" else "clipped"
-        
+        mapq = config["mapQ"]      
         if sid in subsample_samples:
-            bams.append(f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.subs{target_dp}.sitefilt.Q20.q30.bam")
+            bams.append(f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.subs{target_dp}.q{mapq}.bam")
         else:
             bams.append(f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.bam")
     return bams

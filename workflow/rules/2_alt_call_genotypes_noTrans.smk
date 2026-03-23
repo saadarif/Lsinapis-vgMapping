@@ -26,9 +26,9 @@ def get_bam_for_genotyping_notrans(wildcards=None, sid=None):
     
     # Pre-masking for historical means no stage suffix. Modern stays clipped.
     stage_str = ".clipped" if src == "modern" else ""
-    
+    mapq = config["mapQ"]
     if sid in subsample_samples:
-        return f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged{stage_str}.subs{target_dp}.regfilt.Q20.q30.bam"
+        return f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged{stage_str}.subs{target_dp}.q{mapq}.bam"
     else:
         return f"results/mapping/{src}/{sid}.{REF_NAME}.merged.dedup.merged{stage_str}.bam"
 
@@ -106,7 +106,7 @@ rule joint_call_genotypes_notrans:
     threads: 8
     shell:
         """
-        bcftools mpileup -f {input.ref} -R {input.targets} \
+        bcftools mpileup --threads {threads} -f {input.ref} -R {input.targets} \
             -a "FORMAT/QS,FORMAT/AD,FORMAT/DP,INFO/AD" -B \
             --min-MQ 30 --min-BQ 20 -Ou {input.bams} | \
             bcftools call -m -a GQ,GP -G {input.poplist} -Ou | \
