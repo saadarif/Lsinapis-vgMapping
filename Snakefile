@@ -20,13 +20,6 @@ wildcard_constraints:
     ref_name  = "[^.]+"   # Stop at the dot before .bam
 
 
-#ADD rules here
-include: "workflow/rules/1.1_mapping.smk"
-include: "workflow/rules/1.2_subsampling.smk"
-#include: "workflow/rules/2_call_genotypes.smk"
-#include: "workflow/rules/2_alt_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
-
-
 #Function to load metadata with robust handling of missing files and columns
 def load_metadata(file_key, source_name):
     file_path = config.get(file_key)
@@ -102,7 +95,7 @@ def get_final_targets(wildcards):
         # calculate average depth for final BAMs as well
         targets.append(f"results/mapping/{src}/stats/merged_dedup_merged_{stage}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.regfilt.Q20.q30.depth.txt")
 
-        #3. MAPDAMAGE TARGETS (Historical Only) 
+        #3. MAPDAMAGE TARGETS (Historical & Modern) 
         if  src == "historical":
             # mapDamage run 1: Before masking run for both historical and modern to allow comparison (but only historical will have the stats file since modern won't be run through mapDamage)
             targets.append(f"results/mapping/{src}/stats/merged_dedup_merged/mapdamage/{sid}.{REF_NAME}")
@@ -176,6 +169,12 @@ def get_final_targets(wildcards):
                     targets.append(f"results/genotyping_notrans/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.notrans.{s_type}.fmiss{m_val}.bcf.stats.ref_bias")
     
     return targets
+
+#ADD rules here
+include: "workflow/rules/1.1_mapping.smk"
+include: "workflow/rules/1.2_subsampling.smk"
+include: "workflow/rules/2_call_genotypes.smk"
+include: "workflow/rules/2_alt_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
 
 
 rule all:

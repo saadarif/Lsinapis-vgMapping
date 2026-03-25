@@ -7,15 +7,14 @@ ref_name: "DTOLREF"
 #full path to reference without the .fa extension
 reference: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ref_genome/Leptidea_sinapis-GCA_905404315.1-softmasked"
 #Prefix of variation graph
-vg_prefix: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/vgconstruct//DTOLREF.modvars"
+vg_prefix: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/vgconstruct/DTOLREF.modvars"
 #A catalog of snps for masking 5' and 3' ends of
 #historical reads using bamrefine algorithm. Can be generated for snps used
 #to make variation graph, can also buse to retain sites as all our found within the site_filter_bed
-snp_mask_bed: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/vgconstruct/vgconstruct/Modern_DTOLREF.filtered_mindp6-allsites-jointcall.vcf.snps.bed"
+snp_mask_bed: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/vgconstruct/Modern_DTOLREF.filtered_mindp6-allsites-jointcall.vcf.snps.bed"
 #Alternative to the snp_mask_bed, Site filter bed
 # a bed file for target regions to retain, e.g. no repeats, no sex chromosomes, no mtDNA, no collapsed regions, no regions with low mappability, etc. Can be generated using bedtools intersect -v with a bed file of all sites and a bed file of sites to exclude
 site_filter_bed: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ref_genome/ZNolen_site_filters/Leptidea_sinapis-GCA_905404315.1-softmasked_autosomes_minScaf1MB_repma_snpabble_collma.bed"
-
 
 
 # --- Input Metadata ---
@@ -24,12 +23,12 @@ historical_csv: "historical_samples.tsv"
 
 # --- Analysis Toggles ---
 run_multiqc: TRUE 
-run_genotyping: False #NOT IMPLEMENTED YET
-run_genotyping_notrans: False #removes transitions and uses the site_filter_bed instead of the snp_mask_bed for genotyping, which is more conservative and may be better for low coverage historical samples. NOT IMPLEMENTED YET
+run_genotyping: TRUE 
+run_genotyping_notrans: TRUE #removes transitions and uses the site_filter_bed instead of the snp_mask_bed for genotyping, which is more conservative and may be better for low coverage historical samples. NOT IMPLEMENTED YET
 
 # --- Subsampling ---
 #Ids of samples in quotes that need to be susbsampled
-subsample_samples: ["M1"]
+subsample_samples: ["M1", "M2", "M3", "M4"]
 subsample_depth: 15
 
 #------Software configurations------
@@ -47,8 +46,10 @@ params:
     # Provide an array of missingness values (default to [0.0] if empty)
     maxMissing: [0.0, 0.1]
     # Provide a list of sample_ids to drop from the final merge
-    drop_samples: []
-    poplist: "/path/to/your/poplist.txt"  # <--- ADD THIS for joint genotype calling
+    drop_samples: ["NHM091"]
+    #TODO: 
+    poplist: "Pops_GTS.txt"  # <--- two olumnc text file with sample_id in first column and population in second column, no header
+    # the poplist should include samples in the drop_samples list, 
 
 
 # --- Resource Allocation ---

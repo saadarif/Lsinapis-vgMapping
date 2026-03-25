@@ -1,4 +1,4 @@
-==============================================================================
+#==============================================================================
 # VARIABLES & SETUP FOR NO-TRANSITIONS WORKFLOW
 # ==============================================================================
 MIN_DP_NT = config["params"]["run_genotyping"]["minDP"]
@@ -53,19 +53,26 @@ rule call_individual_genotypes_notrans:
     output:
         bcf = "results/genotyping_notrans/individual/{sample_id}.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.notrans.bcf",
         idx = "results/genotyping_notrans/individual/{sample_id}.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.notrans.bcf.csi"
+    params:
+        min_dp = MIN_DP_NT,
+        max_dp = MAX_DP_NT,
+        mapq = MAPQ_NT,
+        baseq = BASEQ_NT
+    log: "logs/genotyping_notrans/individual/{sample_id}_{ref_name}.log"
+    benchmark: "benchmarks/genotyping_notrans/individual/{sample_id}_{ref_name}.benchmark"
     conda: "../envs/bcftools121.yaml"
-    threads: 2
+    threads: 8
     shell:
         """
-        bcftools mpileup --threads {threads} -f {input.ref} -R {input.targets} \\
-            -Ou -B --min-MQ {MAPQ_NT} --min-BQ {BASEQ_NT} -a "FORMAT/AD,FORMAT/DP,INFO/AD" {input.alignments} | \\
-            bcftools call -m -a GQ,GP -Ou | \\
-            bcftools filter -g 5 -i'QUAL >= 30'-Ou | \\
-            bcftools view -V indels -M2 -Ov | \\
-            awk -F '\\t' '/^#/ || !(($4 == "A" && $5 == "G") || ($4 == "G" && $5 == "A") || ($4 == "C" && $5 == "T") || ($4 == "T" && $5 == "C"))' | \\
-            bcftools view -Ou | \\
-            bcftools +setGT -Ou -- -t q -n . -i"FMT/DP<{MIN_DP_NT} | FMT/DP>{MAX_DP_NT}" | \\
-            bcftools +setGT -Ou -- -t q -n . -i'GT="het" & (FMT/AD[:0]/FMT/DP < 0.21 | FMT/AD[:0]/FMT/DP > 0.79 | FMT/AD[:1]/FMT/DP < 0.21 | FMT/AD[:1]/FMT/DP > 0.79)' | \\
+        bcftools mpileup --threads {threads} -f {input.ref} -R {input.targets} \
+            -Ou -B --min-MQ {params.mapq} --min-BQ {params.baseq} -a "FORMAT/AD,FORMAT/DP,INFO/AD" {input.alignments} | \
+            bcftools call -m -a GQ,GP -Ou | \
+            bcftools filter -g 5 -i'QUAL >= 30'-Ou | \
+            bcftools view -V indels -M2 -Ov | \
+            awk -F '\\t' '/^#/ || !(($4 == "A" && $5 == "G") || ($4 == "G" && $5 == "A") || ($4 == "C" && $5 == "T") || ($4 == "T" && $5 == "C"))' | \
+            bcftools view -Ou | \
+            bcftools +setGT -Ou -- -t q -n . -i"FMT/DP<{params.min_dp} | FMT/DP>{params.max_dp}" | \
+            bcftools +setGT -Ou -- -t q -n . -i'GT="het" & (FMT/AD[:0]/FMT/DP < 0.21 | FMT/AD[:0]/FMT/DP > 0.79 | FMT/AD[:1]/FMT/DP < 0.21 | FMT/AD[:1]/FMT/DP > 0.79)' | \
             bcftools +fill-tags -Ob -- -t all > {output.bcf}
         
         bcftools index -o {output.idx} {output.bcf}
@@ -77,17 +84,19 @@ rule merge_genotypes_notrans:
         csis = lambda wildcards: expand("results/genotyping_notrans/individual/{sample_id}.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.notrans.bcf.csi", sample_id=KEEP_SAMPLES_NT, ref_name=REF_NAME)
     output:
         merged_bcf = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.indCall.notrans.allsites.bcf",
-        csi = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.indCall.notrans.allsites.bcf.csi"
-        stats = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.indCall.notrans.allsites.bcf.stats"
+        csi = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.indCall.notrans.allsites.bcf.csi",
+        stats = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.indCall.notrans.allsites.bcf.stats",
+    log: "logs/genotyping_notrans/merged_genotypes_{ref_name}.log"
+    benchmark: "benchmarks/genotyping_notrans/merged_genotypes_{ref_name}.benchmark"
     conda: "../envs/bcftools121.yaml"
     threads: 4
     shell:
         """
-        bcftools merge --force-samples -Ou {input.bcfs} | \\
-            bcftools +fill-tags -Ou -- -t all | \\
-            bcftools view -Ob -o {output.merged_bcf}
-        bcftools index -o {output.csi} {output.merged_bcf}
-         bcftools stats -s - {output.merged_bcf} > {output.stats}
+        bcftools merge --force-samples -Ou {input.bcfs} | \
+            bcftools +fill-tags -Ou -- -t all | \
+            bcftools view -Ob -o {output.merged_bcf} 2> {log}
+        bcftools index -o {output.csi} {output.merged_bcf} 2>> {log}
+        bcftools stats -s - {output.merged_bcf} > {output.stats}
         """
 
 rule joint_call_genotypes_notrans:
@@ -100,15 +109,22 @@ rule joint_call_genotypes_notrans:
         poplist = POPLIST_NT
     output:
         bcf = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.jointCall.notrans.allsites.bcf",
-        csi = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.jointCall.notrans.allsites.bcf.csi"
-        stats = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.jointCall.notrans.allsites.bcf.stats"
+        csi = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.jointCall.notrans.allsites.bcf.csi",
+        stats = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.jointCall.notrans.allsites.bcf.stats",
+    params:
+        min_dp = MIN_DP_NT,
+        max_dp = MAX_DP_NT,
+        mapq = MAPQ_NT,
+        baseq = BASEQ_NT
+    log: "logs/genotyping_notrans/joint_call_genotypes_{ref_name}.log"
+    benchmark: "benchmarks/genotyping_notrans/joint_call_genotypes_{ref_name}.benchmark"
     conda: "../envs/bcftools121.yaml"
     threads: 8
     shell:
         """
         bcftools mpileup --threads {threads} -f {input.ref} -R {input.targets} \
             -a "FORMAT/QS,FORMAT/AD,FORMAT/DP,INFO/AD" -B \
-            --min-MQ 30 --min-BQ 20 -Ou {input.bams} | \
+            --min-MQ {params.mapq} --min-BQ {params.baseq}   -Ou {input.bams} | \
             bcftools call -m -a GQ,GP -G {input.poplist} -Ou | \
             bcftools filter -g 5 -i'QUAL >= 30' -Ou | \
             bcftools view -V indels -M2 -Ou | \
@@ -116,9 +132,9 @@ rule joint_call_genotypes_notrans:
             bcftools view -Ou | \
             bcftools +setGT -Ou -- -t q -n . -i"FMT/DP<{params.min_dp} | FMT/DP>{params.max_dp}" | | \
             bcftools +setGT -Ou -- -t q -n . -i'GT="het" & (FMT/VAF < 0.21 | FMT/VAF > 0.79' | \
-            bcftools +fill-tags -Ob -- -t all > {output.bcf}
+            bcftools +fill-tags -Ob -- -t all > {output.bcf} 2> {log}
             
-        bcftools index -o {output.csi} {output.bcf}
+        bcftools index -o {output.csi} {output.bcf} 2>> {log}
         bcftools stats -s - {output.bcf} > {output.stats}  
         """
 
@@ -131,45 +147,47 @@ rule filter_variants_notrans:
     output:
         bcf = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.biallelic.bcf",
         csi = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.biallelic.bcf.csi",
-        stats = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.biallelic.bcf.stats"
+        stats = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.biallelic.bcf.stats",
+    log: "logs/genotyping_notrans/filter_variants_{ref_name}_{call_type}.log"
     conda: "../envs/bcftools121.yaml"
     shell:
         """
-        bcftools view -v snps -m 2 -M 2 -i 'MAF>0' -Ob -o {output.bcf} {input.bcf}
-        bcftools index -o {output.csi} {output.bcf}
+        bcftools view -v snps -m 2 -M 2 -i 'MAF>0' -Ob -o {output.bcf} {input.bcf} 2> {log}
+        bcftools index -o {output.csi} {output.bcf} 2>> {log}
         bcftools stats -s - {output.bcf} > {output.stats}
         """
 
 rule filter_missingness_notrans:
     input:
-        bcf = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.bcf"
+        bcf = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.bcf",
         csi = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.bcf.csi"
     output:
         bcf = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.fmiss{max_miss}.bcf",
         csi = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.fmiss{max_miss}.bcf.csi",
         stats = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.fmiss{max_miss}.bcf.stats",
         modsites = temp("results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.fmiss{max_miss}.modsites.tmp"),
-        histsites = temp("results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.fmiss{max_miss}.histsites.tmp")
+        histsites = temp("results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.fmiss{max_miss}.histsites.tmp"),
     params:
         modsamps = ",".join(VALID_SAMPLES_DF_NT[VALID_SAMPLES_DF_NT['source'] == 'modern']['sample_id'].tolist()),
         histsamps = ",".join(VALID_SAMPLES_DF_NT[VALID_SAMPLES_DF_NT['source'] == 'historical']['sample_id'].tolist())
+    log: "logs/genotyping_notrans/filter_missingness_{ref_name}_{call_type}_{site_type}_fmiss{max_miss}.log"
     conda: "../envs/bcftools121.yaml"
     threads: 4
     shell:
         """
-        bcftools view -s {params.histsamps} --force-samples -Ou {input.bcf} | \\
-            bcftools +fill-tags -Ou -- -t F_MISSING | \\
-            bcftools query -i 'F_MISSING <= {wildcards.max_miss}' \\
-                -f '%CHROM\\t%POS\\n' > {output.histsites}
+        bcftools view -s {params.histsamps} --force-samples -Ou {input.bcf} | \
+            bcftools +fill-tags -Ou -- -t F_MISSING | \
+            bcftools query -i 'F_MISSING <= {wildcards.max_miss}' \
+                -f '%CHROM\\t%POS\\n' > {output.histsites} 2> {log}
         
-        bcftools view -s {params.modsamps} --force-samples -Ou {input.bcf} | \\
-            bcftools +fill-tags -Ou -- -t F_MISSING | \\
-            bcftools query -i 'F_MISSING <= {wildcards.max_miss}' \\
-                -f '%CHROM\\t%POS\\n' > {output.modsites}
+        bcftools view -s {params.modsamps} --force-samples -Ou {input.bcf} | \
+            bcftools +fill-tags -Ou -- -t F_MISSING | \
+            bcftools query -i 'F_MISSING <= {wildcards.max_miss}' \
+                -f '%CHROM\\t%POS\\n' > {output.modsites} 2>> {log}
         
-        bcftools view -T {output.histsites} -Ou {input.bcf} | \\
-            bcftools view -T {output.modsites} -Ob -o {output.bcf}
+        bcftools view -T {output.histsites} -Ou {input.bcf} | \
+            bcftools view -T {output.modsites} -Ob -o {output.bcf} 2>> {log}
         
-        bcftools index -o {output.csi} {output.bcf}
+        bcftools index -o {output.csi} {output.bcf} 2>> {log}
         bcftools stats -s - {output.bcf} > {output.stats}
         """
