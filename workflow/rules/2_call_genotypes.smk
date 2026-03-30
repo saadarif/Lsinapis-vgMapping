@@ -10,6 +10,24 @@ DROP_SAMPLES = config["params"]["run_genotyping"].get("drop_samples", [])
 VALID_SAMPLES_DF = samples_df[~samples_df['sample_id'].isin(DROP_SAMPLES)] #required for the rule filter_missingness
 KEEP_SAMPLES = VALID_SAMPLES_DF['sample_id'].tolist()
 
+# DYNAMICALLY FILTER THE POPLIST to ONLY INCLUDE KEPT SAMPLES
+# ==============================================================================
+ORIGINAL_POPLIST = config["params"]["run_genotyping"]["poplist"]
+FILTERED_POPLIST = "results/genotyping/filtered_poplist.txt"
+
+# Only attempt to filter if the original file actually exists
+if os.path.exists(ORIGINAL_POPLIST):
+    # Read the poplist (using '\s+' handles both spaces and tabs)
+    pop_df = pd.read_csv(ORIGINAL_POPLIST, sep=r'\s+', header=None, names=['sample_id', 'pop_id'])
+    
+    # Filter the dataframe to only include samples in KEEP_SAMPLES
+    filtered_pop_df = pop_df[pop_df['sample_id'].isin(KEEP_SAMPLES)]
+    
+    # Create the output directory if it doesn't exist and save the filtered file
+    os.makedirs(os.path.dirname(FILTERED_POPLIST), exist_ok=True)
+    filtered_pop_df.to_csv(FILTERED_POPLIST, sep='\t', header=False, index=False)
+
+
 # ==============================================================================
 # HELPER FUNCTION FOR GENOTYPING INPUT
 # ==============================================================================
@@ -150,7 +168,7 @@ rule joint_call_genotypes:
         ref = config["reference"] + ".fa",
         fai = f"{config['reference']}.fa.fai",
         sites=config["snp_mask_bed"],  # List of target regions for genotyping
-        poplist = POPLIST #for HWE filtering
+        poplist = FILTERED_POPLIST #for HWE filtering
     output:
         bcf = "results/genotyping/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ) + ".mq" + str(MAPQ) + ".snps5.noIndel.Q30.dp" + str(MIN_DP) + "-" + str(MAX_DP) + ".AB.jointCall.allsites.bcf",
         csi = "results/genotyping/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ) + ".mq" + str(MAPQ) + ".snps5.noIndel.Q30.dp" + str(MIN_DP) + "-" + str(MAX_DP) + ".AB.jointCall.allsites.bcf.csi",

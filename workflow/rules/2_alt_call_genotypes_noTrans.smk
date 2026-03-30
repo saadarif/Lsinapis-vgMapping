@@ -12,6 +12,24 @@ DROP_SAMPLES_NT = config["params"]["run_genotyping"].get("drop_samples", [])
 VALID_SAMPLES_DF_NT = samples_df[~samples_df['sample_id'].isin(DROP_SAMPLES_NT)] 
 KEEP_SAMPLES_NT = VALID_SAMPLES_DF_NT['sample_id'].tolist()
 
+# DYNAMICALLY FILTER THE POPLIST to ONLY INCLUDE KEPT SAMPLES
+# ==============================================================================
+ORIGINAL_POPLIST_NT = config["params"]["run_genotyping"]["poplist"]
+FILTERED_POPLIST_NT = "results/genotyping/filtered_poplist.txt"
+
+# Only attempt to filter if the original file actually exists
+if os.path.exists(ORIGINAL_POPLIST_NT):
+    # Read the poplist (using '\s+' handles both spaces and tabs)
+    pop_df = pd.read_csv(ORIGINAL_POPLIST_NT, sep=r'\s+', header=None, names=['sample_id', 'pop_id'])
+    
+    # Filter the dataframe to only include samples in KEEP_SAMPLES
+    filtered_pop_df = pop_df[pop_df['sample_id'].isin(KEEP_SAMPLES_NT)]
+    
+    # Create the output directory if it doesn't exist and save the filtered file
+    os.makedirs(os.path.dirname(FILTERED_POPLIST_NT), exist_ok=True)
+    filtered_pop_df.to_csv(FILTERED_POPLIST_NT, sep='\t', header=False, index=False)
+
+
 # ==============================================================================
 # INPUT HELPER FUNCTIONS
 # ==============================================================================
@@ -67,7 +85,7 @@ rule call_individual_genotypes_notrans:
         bcftools mpileup --threads {threads} -f {input.ref} -R {input.targets} \
             -Ou -B --min-MQ {params.mapq} --min-BQ {params.baseq} -a "FORMAT/AD,FORMAT/DP,INFO/AD" {input.alignments} | \
             bcftools call -m -a GQ,GP -Ou | \
-            bcftools filter -g 5 -i'QUAL >= 30'-Ou | \
+            bcftools filter -g 5 -i'QUAL >= 30' -Ou | \
             bcftools view -V indels -M2 -Ov | \
             awk -F '\\t' '/^#/ || !(($4 == "A" && $5 == "G") || ($4 == "G" && $5 == "A") || ($4 == "C" && $5 == "T") || ($4 == "T" && $5 == "C"))' | \
             bcftools view -Ou | \
@@ -106,7 +124,7 @@ rule joint_call_genotypes_notrans:
         ref = config["reference"] + ".fa",
         fai = f"{config['reference']}.fa.fai",
         targets = SITEFILTER_BED,
-        poplist = POPLIST_NT
+        poplist = FILTERED_POPLIST_NT #for HWE filtering
     output:
         bcf = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.jointCall.notrans.allsites.bcf",
         csi = "results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.jointCall.notrans.allsites.bcf.csi",

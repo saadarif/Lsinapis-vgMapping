@@ -1,5 +1,5 @@
 sample_id	run_id	fq1	fq2	rgGroup_ID	platform
-LsKaz10	01_L1 	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz10_01_L1_R1_trimmed.fastq.gz	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz10_01_L1_R2_trimmed.fastq.gz	C3MG8ACXX_L1_01	hiseq2000
+LsKaz10	01_L1	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz10_01_L1_R1_trimmed.fastq.gz	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz10_01_L1_R2_trimmed.fastq.gz	C3MG8ACXX_L1_01	hiseq2000
 LsKaz10	01_L2	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz10_01_L2_R1_trimmed.fastq.gz	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz10_01_L2_R2_trimmed.fastq.gz	C79PFANXX_L2_01	hiseq2000
 LsKaz1	01_L1	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz1_01_L1_R1_trimmed.fastq.gz	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz1_01_L1_R2_trimmed.fastq.gz	C3MG8ACXX_L1_01	hiseq2000
 LsKaz1	01_L2	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz1_01_L2_R1_trimmed.fastq.gz	/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/DTOLGenErode_trimmed_reads_forVG/modern/LsKaz1_01_L2_R2_trimmed.fastq.gz	C79PFANXX_L2_01	hiseq2000
