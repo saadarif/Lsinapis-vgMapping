@@ -148,7 +148,7 @@ rule joint_call_genotypes_notrans:
             bcftools view -V indels -M2 -Ou | \
             awk -F '\\t' '/^#/ || !(($4 == "A" && $5 == "G") || ($4 == "G" && $5 == "A") || ($4 == "C" && $5 == "T") || ($4 == "T" && $5 == "C"))' | \
             bcftools view -Ou | \
-            bcftools +setGT -Ou -- -t q -n . -i"FMT/DP<{params.min_dp} | FMT/DP>{params.max_dp}" | | \
+            bcftools +setGT -Ou -- -t q -n . -i"FMT/DP<{params.min_dp} | FMT/DP>{params.max_dp}" | \
             bcftools +setGT -Ou -- -t q -n . -i'GT="het" & (FMT/VAF < 0.21 | FMT/VAF > 0.79' | \
             bcftools +fill-tags -Ob -- -t all > {output.bcf} 2> {log}
             
