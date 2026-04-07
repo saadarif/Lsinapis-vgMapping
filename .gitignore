@@ -3,3 +3,4 @@ results/
 benchmarks/
 logs/
 .snakemake/
+.github_tokens
