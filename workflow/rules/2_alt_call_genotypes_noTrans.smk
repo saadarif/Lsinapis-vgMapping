@@ -10,12 +10,12 @@ SITEFILTER_BED = config["site_filter_bed"]  # Using the more conservative site f
 
 DROP_SAMPLES_NT = config["params"]["run_genotyping"].get("drop_samples", [])
 VALID_SAMPLES_DF_NT = samples_df[~samples_df['sample_id'].isin(DROP_SAMPLES_NT)] 
-KEEP_SAMPLES_NT = VALID_SAMPLES_DF_NT['sample_id'].tolist()
+KEEP_SAMPLES_NT = VALID_SAMPLES_DF_NT['sample_id'].unique().tolist()
 
 # DYNAMICALLY FILTER THE POPLIST to ONLY INCLUDE KEPT SAMPLES
 # ==============================================================================
 ORIGINAL_POPLIST_NT = config["params"]["run_genotyping"]["poplist"]
-FILTERED_POPLIST_NT = "results/genotyping/filtered_poplist.txt"
+FILTERED_POPLIST_NT = "results/genotyping_notrans/filtered_poplist.txt"
 
 # Only attempt to filter if the original file actually exists
 if os.path.exists(ORIGINAL_POPLIST_NT):
@@ -148,8 +148,9 @@ rule joint_call_genotypes_notrans:
             bcftools view -V indels -M2 -Ov | \
             awk -F '\\t' '/^#/ || !(($4 == "A" && $5 == "G") || ($4 == "G" && $5 == "A") || ($4 == "C" && $5 == "T") || ($4 == "T" && $5 == "C"))' | \
             bcftools view -Ou | \
+            bcftools +fill-tags -Ou -- -t all | \
             bcftools +setGT -Ou -- -t q -n . -i"FMT/DP<{params.min_dp} | FMT/DP>{params.max_dp}" | \
-            bcftools +setGT -Ou -- -t q -n . -i'GT="het" & (FMT/VAF < 0.21 | FMT/VAF > 0.79') | \
+            bcftools +setGT -Ou -- -t q -n . -i'GT="het" & (FMT/VAF < 0.21 | FMT/VAF > 0.79)' | \
             bcftools +fill-tags -Ob -- -t all > {output.bcf} 2> {log}
             
         bcftools index -o {output.csi} {output.bcf} 2>> {log}
@@ -186,8 +187,8 @@ rule filter_missingness_notrans:
         modsites = temp("results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.fmiss{max_miss}.modsites.tmp"),
         histsites = temp("results/genotyping_notrans/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.{call_type}.notrans.{site_type}.fmiss{max_miss}.histsites.tmp"),
     params:
-        modsamps = ",".join(VALID_SAMPLES_DF_NT[VALID_SAMPLES_DF_NT['source'] == 'modern']['sample_id'].tolist()),
-        histsamps = ",".join(VALID_SAMPLES_DF_NT[VALID_SAMPLES_DF_NT['source'] == 'historical']['sample_id'].tolist())
+        modsamps = ",".join(VALID_SAMPLES_DF_NT[VALID_SAMPLES_DF_NT['source'] == 'modern']['sample_id'].unique().tolist()),
+        histsamps = ",".join(VALID_SAMPLES_DF_NT[VALID_SAMPLES_DF_NT['source'] == 'historical']['sample_id'].unique().tolist())
     log: "logs/genotyping_notrans/filter_missingness_{ref_name}_{call_type}_{site_type}_fmiss{max_miss}.log"
     conda: "../envs/bcftools121.yaml"
     threads: 4

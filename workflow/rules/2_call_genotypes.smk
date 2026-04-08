@@ -8,7 +8,7 @@ POPLIST = config["params"]["run_genotyping"]["poplist"] #required for joint call
 # Handle samples to drop and keep, needed for merging samples
 DROP_SAMPLES = config["params"]["run_genotyping"].get("drop_samples", [])
 VALID_SAMPLES_DF = samples_df[~samples_df['sample_id'].isin(DROP_SAMPLES)] #required for the rule filter_missingness
-KEEP_SAMPLES = VALID_SAMPLES_DF['sample_id'].tolist()
+KEEP_SAMPLES = VALID_SAMPLES_DF['sample_id'].unique().tolist()
 
 # DYNAMICALLY FILTER THE POPLIST to ONLY INCLUDE KEPT SAMPLES
 # ==============================================================================
@@ -232,8 +232,8 @@ rule filter_missingness:
         modsites = temp("results/genotyping/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ) + ".mq" + str(MAPQ) + ".snps5.noIndel.Q30.dp" + str(MIN_DP) + "-" + str(MAX_DP) + ".AB.{call_type}.{site_type}.fmiss{max_miss}.modsites.tmp"),
         histsites = temp("results/genotyping/merged.all.{ref_name}.sitefilt.bQ" + str(BASEQ) + ".mq" + str(MAPQ) + ".snps5.noIndel.Q30.dp" + str(MIN_DP) + "-" + str(MAX_DP) + ".AB.{call_type}.{site_type}.fmiss{max_miss}.histsites.tmp")
     params:
-        modsamps = ",".join(VALID_SAMPLES_DF[VALID_SAMPLES_DF['source'] == 'modern']['sample_id'].tolist()),
-        histsamps = ",".join(VALID_SAMPLES_DF[VALID_SAMPLES_DF['source'] == 'historical']['sample_id'].tolist())
+        modsamps = ",".join(VALID_SAMPLES_DF[VALID_SAMPLES_DF['source'] == 'modern']['sample_id'].unique().tolist()),
+        histsamps = ",".join(VALID_SAMPLES_DF[VALID_SAMPLES_DF['source'] == 'historical']['sample_id'].unique().tolist())
     log:
         "logs/genotyping/filter_missingness_{ref_name}_{call_type}_{site_type}_fmiss{max_miss}.log"
     conda: "../envs/bcftools121.yaml"

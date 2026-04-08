@@ -103,6 +103,7 @@ rule map_modern:
         gcsa = f"{config['vg_prefix']}.gcsa"
     output:
         bam = temp("results/mapping/modern/{sample_id}.{run_id}.{ref_name}.modern.bam"),
+        #TODO: add temp bai file
         flagstat = "results/mapping/modern/stats/vgmap/{sample_id}.{run_id}.{ref_name}.flagstat.txt"
     conda: "../envs/vg.yaml"
     threads: config.get("threads_mapping", 16)

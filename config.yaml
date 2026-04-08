@@ -44,7 +44,7 @@ params:
     minDP: 6
     maxDP: 150 #determined as ten types average coverage of modern samples, can be adjusted based on coverage distribution of historical samples. This is a hard filter that will set genotypes to missing if they fall outside this range, so be conservative with this value.  
     # Provide an array of missingness values (default to [0.0] if empty)
-    maxMissing: [0.0, 0.1]
+    maxMissing: [0.0, 0.1, 0.2, 0.3]
     # Provide a list of sample_ids to drop from the final merge
     drop_samples: ["NHM091"]
     #TODO: 
