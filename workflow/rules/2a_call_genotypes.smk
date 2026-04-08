@@ -262,13 +262,12 @@ rule bcf2vcf:
     Makes a bcf a vcf when needed.
     """
     input:
-        bcf="results/{geno_dir}/{prefix}.bcf",
-        idx="results/{geno_dir}/{prefix}.bcf.csi",
+        bcf="results/genotyping/{prefix}.bcf",
+        idx="results/genotyping/{prefix}.bcf.csi",
     output:
-        vcf="results/{geno_dir}/{prefix}.vcf.gz",
-        tbi="results/{geno_dir}/{prefix}.vcf.gz.tbi",
-    wildcard_constraints:
-        geno_dir="genotyping|genotyping_notrans"
+        vcf="results/genotyping/{prefix}.vcf.gz",
+        tbi="results/genotyping/{prefix}.vcf.gz.tbi",
+
     conda:
         "../envs/bcftools121.yaml"
     threads: 6
@@ -283,11 +282,10 @@ rule bcf_ref_bias:
     Calculate reference bias (ref alleles / total alleles) per sample from calls
     """
     input:
-        stats="results/{geno_dir}/{prefix}.bcf.stats",
+        stats="results/genotyping/{prefix}.bcf.stats",
     output:
-        bias="results/{geno_dir}/{prefix}.bcf.stats.ref_bias",
-    wildcard_constraints:
-        geno_dir="genotyping|genotyping_notrans"
+        bias="results/genotyping/{prefix}.bcf.stats.ref_bias",
+   
     shell:
         """
         grep PSC {input.stats} | \

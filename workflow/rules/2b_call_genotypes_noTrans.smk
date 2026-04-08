@@ -67,7 +67,7 @@ rule call_individual_genotypes_notrans:
         alignments = get_bam_for_genotyping_notrans,
         index = get_bai_for_genotyping_notrans,
         ref = config["reference"] + ".fa",
-        targets = SITEFILTER_BED
+        targets = config["site_filter_bed"] 
     output:
         bcf = "results/genotyping_notrans/individual/{sample_id}.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.notrans.bcf",
         idx = "results/genotyping_notrans/individual/{sample_id}.{ref_name}.sitefilt.bQ" + str(BASEQ_NT) + ".mq" + str(MAPQ_NT) + ".snps5.noIndel.Q30.dp" + str(MIN_DP_NT) + "-" + str(MAX_DP_NT) + ".AB.notrans.bcf.csi"
@@ -209,4 +209,38 @@ rule filter_missingness_notrans:
         
         bcftools index -o {output.csi} {output.bcf} 2>> {log}
         bcftools stats -s - {output.bcf} > {output.stats}
+        """
+
+rule bcf2vcf_notrans:
+    """
+    Makes a bcf a vcf when needed.
+    """
+    input:
+        bcf="results/genotyping_notrans/{prefix}.bcf",
+        idx="results/genotyping_notrans/{prefix}.bcf.csi",
+    output:
+        vcf="results/genotyping_notrans/{prefix}.vcf.gz",
+        tbi="results/genotyping_notrans/{prefix}.vcf.gz.tbi",
+    conda:
+        "../envs/bcftools121.yaml"
+    threads: 6
+    shell:
+        """
+        bcftools view -Oz {input.bcf} > {output.vcf}
+        tabix {output.vcf}
+        """
+
+rule bcf_ref_bias_notrans:
+    """
+    Calculate reference bias (ref alleles / total alleles) per sample from calls
+    """
+    input:
+        stats="results/genotyping_notrans/{prefix}.bcf.stats",
+    output:
+        bias="results/genotyping_notrans/{prefix}.bcf.stats.ref_bias",
+    shell:
+        """
+        grep PSC {input.stats} | \
+            grep -v "#" | \
+            awk '{{print $3"\t"(2*$4+$6)/(2*($4+$5+$6))}}' > {output.bias}
         """

@@ -73,7 +73,9 @@ SAMPLES = samples_df['sample_id'].unique()
 # 2. TARGET GENERATION (
 # ==============================================================================
 def get_final_targets(wildcards):
+    
     targets = []
+
     for _, row in samples_df.drop_duplicates('sample_id').iterrows():
         sid = row['sample_id']
         src = row['source']
@@ -96,17 +98,26 @@ def get_final_targets(wildcards):
 
         #3. MAPDAMAGE TARGETS (Historical & Modern) 
         if  src == "historical":
-            # mapDamage run 1: Before masking run for both historical and modern to allow comparison (but only historical will have the stats file since modern won't be run through mapDamage)
-            targets.append(f"results/mapping/{src}/stats/merged_dedup_merged/mapdamage/{sid}.{REF_NAME}")
+            # mapDamage run 1: Run mapdamge make resccaled BAMs for historical samples
+            targets.append(f"results/mapping/historical/stats/merged_dedup_merged/mapdamage/{sid}.{REF_NAME}")
+            targets.append(f"results/mapping/historical/{sid}.{REF_NAME}.merged.dedup.merged.rescaled.bam")
             # mapDamage run 2: After masking
             #targets.append(f"results/mapping/historical/stats/merged_dedup_merged_masked/mapdamage/{sid}.{REF_NAME}")
 
     # 4. MultiQC targets for Dedup and final BAMS
-    for src in samples_df['source'].unique():
-        stage = "masked" if src == "historical" else "clipped"
-        targets.append(f"results/mapping/{src}/stats/merged_dedup_merged/multiqc_{src}_dedup_merged_report.html")
-        # Fixed to use _{stage} to prevent the {suffix} variable leakage
-        targets.append(f"results/mapping/{src}/stats/merged_dedup_merged_{stage}/multiqc_{src}_{stage}_report.html")
+    if config.get("run_multiqc", False):
+        # ---------------------------------------------------------
+        # 1. MultiQC for Deduplicated BAMs (Pre-Stage Processing)
+        # ---------------------------------------------------------
+        targets.append(f"results/mapping/modern/stats/merged_dedup_merged/multiqc_modern_dedup_merged_report.html")
+        targets.append(f"results/mapping/historical/stats/merged_dedup_merged/multiqc_historical_dedup_merged_report.html")
+
+        # ---------------------------------------------------------
+        # 2. MultiQC for Final BAMs (Post-Stage Processing)
+        # ---------------------------------------------------------
+        targets.append(f"results/mapping/modern/stats/merged_dedup_merged_clipped/multiqc_modern_clipped_report.html")
+        targets.append(f"results/mapping/historical/stats/merged_dedup_merged_masked/multiqc_historical_masked_report.html")
+        targets.append(f"results/mapping/historical/stats/merged_dedup_merged_rescaled/multiqc_historical_rescaled_report.html")
 
     # 5. Add subsampled BAM targets for each sample and stage, if any
     subsample_samples = config.get("subsample_samples", [])
@@ -167,14 +178,36 @@ def get_final_targets(wildcards):
                     targets.append(f"results/genotyping_notrans/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.notrans.{s_type}.fmiss{m_val}.vcf.gz")
                     targets.append(f"results/genotyping_notrans/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.notrans.{s_type}.fmiss{m_val}.bcf.stats.ref_bias")
     
+    # 8. Add Genotyping Targets for the rescaled workflow
+    if config.get("run_genotyping_rescaled", False):
+        MIN_DP = config["params"]["run_genotyping"]["minDP"]
+        MAX_DP = config["params"]["run_genotyping"]["maxDP"]
+        BASEQ = config["baseQ"]
+        MAPQ = config["mapQ"]
+        
+        MISSING_VALS = config["params"]["run_genotyping"].get("maxMissing", [0.0])
+        if not isinstance(MISSING_VALS, list):
+            MISSING_VALS = [MISSING_VALS]
+            
+        SITE_TYPES = ["allsites", "biallelic"]
+        CALL_TYPES = ["indCall", "jointCall"] 
+        
+        for m_val in MISSING_VALS:
+            for s_type in SITE_TYPES:
+                for c_type in CALL_TYPES:
+                    # Notice the addition of '.notrans.' in the requested file path
+                    targets.append(f"results/genotyping_rescaled/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.rescaled.{s_type}.fmiss{m_val}.vcf.gz")
+                    targets.append(f"results/genotyping_rescaled/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.rescaled.{s_type}.fmiss{m_val}.bcf.stats.ref_bias")
+    
+
     return targets
 
 #ADD rules here
 include: "workflow/rules/1.1_mapping.smk"
 include: "workflow/rules/1.2_subsampling.smk"
-include: "workflow/rules/2_call_genotypes.smk"
-include: "workflow/rules/2_alt_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
-
+include: "workflow/rules/2a_call_genotypes.smk"
+include: "workflow/rules/2b_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
+include: "workflow/rules/2c_call_genotypes_rescaled.smk" #genotyping for historical rescaled BAMs from mapDamage
 
 rule all:
     input: get_final_targets

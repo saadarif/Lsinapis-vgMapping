@@ -315,16 +315,25 @@ rule bam_stats_dedup_merged:
     shell:  "samtools stats {input} 1> {output} 2> {log}"
 
 rule mapdamage_dedup:
-    """Runs mapDamage on historical and modern deduplicated BAMs and stores results in the source-specific QC folder.
-    No rescaling is performed at this point. Only 50% of random reads are sampled to speed up the process."""
+    """Runs mapDamage on historical deduplicated BAMs and stores results in the source-specific QC folder.
+    Also creats a rescaled BAM this moved to main results folder for downstream processing."""
     input: 
-        bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.bam",
-        bai = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.bam.bai",
+        bam = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.bam",
+        bai = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.bam.bai",
         ref = f"{config['reference']}.fa"
-    output: dir = directory("results/mapping/{source}/stats/merged_dedup_merged/mapdamage/{sample_id}.{ref_name}")
-    log: "logs/mapping/mapdamage/{source}/{sample_id}.{ref_name}.merged.dedup.merged.mapdamage.log"
+    output: 
+        dir = directory("results/mapping/historical/stats/merged_dedup_merged/mapdamage/{sample_id}.{ref_name}"),
+        rescaled_bam = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.rescaled.bam",
+        rescaled_bai = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.rescaled.bam.bai",
+    log: "logs/mapping/mapdamage/historical/{sample_id}.{ref_name}.merged.dedup.merged.mapdamage.log"
     conda: "../envs/mapdamage.yaml"
-    shell: "mapDamage -i {input.bam} -r {input.ref} -d {output.dir} --downsample=0.5 --merge-reference-sequences &> {log}"
+    shell: 
+        """
+        mapDamage -i {input.bam} -r {input.ref} -d {output.dir} \
+        --merge-reference-sequences 2> {log} &&
+        cp {output.dir}/{wildcards.sample_id}.{wildcards.ref_name}.merged.dedup.merged.rescaled.bam {output.rescaled_bam}
+        samtools index {output.rescaled_bam} {output.rescaled_bai}
+        """
 
 rule calculate_depth_dedup:
     """Calculates mean depth for the deduplicated BAM file over specified BED regions."""
@@ -349,6 +358,8 @@ rule bam_stats_final:
     """Generates samtools stats in the source-specific QC folder for clipped/masked BAMs."""
     input:  "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.bam"
     output: "results/mapping/{source}/stats/merged_dedup_merged_{stage}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.stats.txt"
+    wildcard_constraints:
+        stage="clipped|masked|rescaled"
     log: "logs/mapping/bam_stats/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.stats.log"
     conda: "../envs/vg.yaml"
     shell: "samtools stats {input} 1> {output} 2> {log}"
@@ -370,11 +381,13 @@ rule calculate_depth_final:
     input:
         bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.bam"
     output:
-        depth = "results/mapping/{source}/stats/merged_dedup_merged_{stage,clipped|masked}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.regfilt.Q20.q30.depth.txt"
+        depth = "results/mapping/{source}/stats/merged_dedup_merged_{stage}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.regfilt.Q20.q30.depth.txt"
     params:
         bed = config.get("site_filter_bed", None),  # BED file for filtering sites, if provided
         mapQ = config.get("mapQ", 30),
-        baseQ = config.get("baseQ", 20)
+        baseQ = config.get("baseQ", 20),
+    wildcard_constraints:
+        stage="clipped|masked|rescaled"
     conda: "../envs/vg.yaml"
     log: "logs/mapping/depth/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.regfilt.Q20.q30.depth.log"
     threads: 2
@@ -406,6 +419,8 @@ rule qualimap_final:
         txt = "results/mapping/{source}/stats/merged_dedup_merged_{stage}/qualimap/{sample_id}.{ref_name}.merged.dedup.merged.{stage}/genome_results.txt"
     params:
         outdir = "results/mapping/{source}/stats/merged_dedup_merged_{stage}/qualimap/{sample_id}.{ref_name}.merged.dedup.merged.{stage}"
+    wildcard_constraints:
+        stage="clipped|masked|rescaled"
     log: "logs/mapping/qualimap/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.qualimap.log"
     conda: "../envs/qualimap.yaml"
     shell: "qualimap bamqc -bam {input.bam} -outdir {params.outdir} --java-mem-size=8G --outformat HTML &> {log}"
@@ -442,7 +457,9 @@ rule multiqc_final:
                                  stage=w.stage, 
                                  s=samples_df[samples_df.source == w.source]['sample_id'].unique(), 
                                  ref=REF_NAME)
-    output: "results/mapping/{source}/stats/merged_dedup_merged_{stage,clipped|masked}/multiqc_{source}_{stage}_report.html"
+    output: "results/mapping/{source}/stats/merged_dedup_merged_{stage}/multiqc_{source}_{stage}_report.html"
+    wildcard_constraints:
+        stage="clipped|masked|rescaled" 
     log: "logs/mapping/multiqc/{source}/multiqc_{source}_{stage}.log"
     conda:  "../envs/multiqc.yaml"
     shell:  

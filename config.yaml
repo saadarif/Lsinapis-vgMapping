@@ -25,6 +25,7 @@ historical_csv: "historical_samples.tsv"
 run_multiqc: TRUE 
 run_genotyping: TRUE 
 run_genotyping_notrans: TRUE #removes transitions and uses the site_filter_bed instead of the snp_mask_bed for genotyping, which is more conservative and may be better for low coverage historical samples. NOT IMPLEMENTED YET
+run_genotyping_rescaled: TRUE #genotyping for historical rescaled BAMs from mapDamage, which may be more accurate for low coverage historical samples. NOT IMPLEMENTED YET
 
 # --- Subsampling ---
 #Ids of samples in quotes that need to be susbsampled
