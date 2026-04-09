@@ -304,7 +304,7 @@ rule historical_mask:
         mv results/mapping/historical/{wildcards.sample_id}.{wildcards.ref_name}.merged.dedup.merged.masked.bam_bamrefine_stats.txt {output.stats}
         """
 # ==============================================================================
-# 3. QUALITY CONTROL & REPORTING
+# 3. QUALITY CONTROL, Rescaling & REPORTING
 # ==============================================================================
 rule bam_stats_dedup_merged:
     """Generates samtools stats in the source-specific QC folder for deduplicated and merged BAMs."""
@@ -330,8 +330,8 @@ rule mapdamage_dedup:
     shell: 
         """
         mapDamage -i {input.bam} -r {input.ref} -d {output.dir} \
-        --merge-reference-sequences 2> {log} &&
-        cp {output.dir}/{wildcards.sample_id}.{wildcards.ref_name}.merged.dedup.merged.rescaled.bam {output.rescaled_bam}
+        --merge-reference-sequences --rescale 2> {log} &&
+        mv {output.dir}/{wildcards.sample_id}.{wildcards.ref_name}.merged.dedup.merged.rescaled.bam {output.rescaled_bam}
         samtools index {output.rescaled_bam} {output.rescaled_bai}
         """
 

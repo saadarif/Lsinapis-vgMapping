@@ -96,7 +96,7 @@ def get_final_targets(wildcards):
         # calculate average depth for final BAMs as well
         targets.append(f"results/mapping/{src}/stats/merged_dedup_merged_{stage}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.regfilt.Q20.q30.depth.txt")
 
-        #3. MAPDAMAGE TARGETS (Historical & Modern) 
+        #3. MAPDAMAGE TARGETS (Historical only) 
         if  src == "historical":
             # mapDamage run 1: Run mapdamge make resccaled BAMs for historical samples
             targets.append(f"results/mapping/historical/stats/merged_dedup_merged/mapdamage/{sid}.{REF_NAME}")
