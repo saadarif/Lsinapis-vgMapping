@@ -7,8 +7,8 @@ required:
   - ref_name
   - reference
   - vg_prefix
-  - modern_csv
-  - historical_csv
+  - modern_tsv
+  - historical_tsv
   - params
 
 properties:
@@ -24,11 +24,11 @@ properties:
     type: string
     description: "Full path prefix for the variation graph (.xg, .gcsa files)."
 
-  modern_csv:
+  modern_tsv:
     type: string
     description: "Path to the TSV/CSV metadata for modern samples."
 
-  historical_csv:
+  historical_tsv:
     type: string
     description: "Path to the TSV/CSV metadata for historical samples."
 
