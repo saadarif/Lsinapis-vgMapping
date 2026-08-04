@@ -86,9 +86,10 @@ def get_final_targets(wildcards):
         #depth file for dedup BAMs (Fixed to match the new output from mapping rules)
         targets.append(f"results/mapping/{src}/stats/merged_dedup_merged/{sid}.{REF_NAME}.merged.dedup.merged.regfilt.Q20.q30.depth.txt")
 
-        # 2. Stage-specific final BAM targets (Clipped for Modern, Masked for Historical)
-        #suffix = ".masked" if src == "historical" else ".clipped"
-        stage = "masked" if src == "historical" else "clipped"
+        # 2. Stage-specific final BAM targets
+        #    modern     -> clipped  (bamutil clipOverlap)
+        #    historical -> rescaled (mapDamage --rescale; replaces the retired bamrefine mask)
+        stage = "rescaled" if src == "historical" else "clipped"
         # Stats file (Fixed folder to use underscore _stage instead of dot)
         targets.append(f"results/mapping/{src}/stats/merged_dedup_merged_{stage}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.stats.txt")
         # BAM file (Fixed path to remove /stats/ folder and added .bam)
@@ -96,13 +97,10 @@ def get_final_targets(wildcards):
         # calculate average depth for final BAMs as well
         targets.append(f"results/mapping/{src}/stats/merged_dedup_merged_{stage}/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.regfilt.Q20.q30.depth.txt")
 
-        #3. MAPDAMAGE TARGETS (Historical only) 
+        # 3. mapDamage report directory (historical only). The rescaled BAM itself is
+        #    already requested above as the historical stage target.
         if  src == "historical":
-            # mapDamage run 1: Run mapdamge make resccaled BAMs for historical samples
             targets.append(f"results/mapping/historical/stats/merged_dedup_merged/mapdamage/{sid}.{REF_NAME}")
-            targets.append(f"results/mapping/historical/{sid}.{REF_NAME}.merged.dedup.merged.rescaled.bam")
-            # mapDamage run 2: After masking
-            #targets.append(f"results/mapping/historical/stats/merged_dedup_merged_masked/mapdamage/{sid}.{REF_NAME}")
 
     # 4. MultiQC targets for Dedup and final BAMS
     if config.get("run_multiqc", False):
@@ -116,7 +114,6 @@ def get_final_targets(wildcards):
         # 2. MultiQC for Final BAMs (Post-Stage Processing)
         # ---------------------------------------------------------
         targets.append(f"results/mapping/modern/stats/merged_dedup_merged_clipped/multiqc_modern_clipped_report.html")
-        targets.append(f"results/mapping/historical/stats/merged_dedup_merged_masked/multiqc_historical_masked_report.html")
         targets.append(f"results/mapping/historical/stats/merged_dedup_merged_rescaled/multiqc_historical_rescaled_report.html")
 
     # 5. Add subsampled BAM targets for each sample and stage, if any
@@ -127,37 +124,14 @@ def get_final_targets(wildcards):
         for sid in subsample_samples:
             # Find the source (modern/historical) for this specific sample
             src = samples_df[samples_df['sample_id'] == sid]['source'].iloc[0]
-            stage = "masked" if src == "historical" else "clipped"
+            stage = "rescaled" if src == "historical" else "clipped"
             
             # Request the subsampled deduplicated BAM depth file to trigger the calculate_subs_depth_dedup rule
             targets.append(f"results/mapping/{src}/stats/merged_dedup_merged/subsampled/{sid}.{REF_NAME}.merged.dedup.merged.subs{target_dp}.q{MAPQ}.regfilt.Q20.q30.depth.txt")
             # Request the subsampled final stage BAM depth file to trigger the calculate_subs_depth_dedup rule for the final BAMs
             targets.append(f"results/mapping/{src}/stats/merged_dedup_merged_{stage}/subsampled/{sid}.{REF_NAME}.merged.dedup.merged.{stage}.subs{target_dp}.q{MAPQ}.regfilt.Q20.q30.depth.txt")
     
-    # 6. Add Genotyping Targets if enabled in config
-    if config.get("run_genotyping", False):
-        MIN_DP = config["params"]["run_genotyping"]["minDP"]
-        MAX_DP = config["params"]["run_genotyping"]["maxDP"]
-        BASEQ = config["baseQ"]
-        MAPQ = config["mapQ"]
-        
-        MISSING_VALS = config["params"]["run_genotyping"].get("maxMissing", [0.0])
-        if not isinstance(MISSING_VALS, list):
-            MISSING_VALS = [MISSING_VALS]
-            
-        SITE_TYPES = ["allsites", "biallelic"]
-        # Include both 'indCall' and 'jointCall' so Snakemake executes both workflows!
-        CALL_TYPES = ["indCall", "jointCall"] 
-        
-        for m_val in MISSING_VALS:
-            for s_type in SITE_TYPES:
-                for c_type in CALL_TYPES:
-                    # Request the .vcf.gz format to trigger the final bcf2vcf rule
-                    targets.append(f"results/genotyping/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.{s_type}.fmiss{m_val}.vcf.gz")
-                    # Request the stats file to trigger the ref_bias rule
-                    targets.append(f"results/genotyping/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.{s_type}.fmiss{m_val}.bcf.stats.ref_bias")
-
-    # 7. Add Genotyping Targets for the NO-TRANSITIONS workflow
+    # 6. Add Genotyping Targets for the NO-TRANSITIONS workflow
     if config.get("run_genotyping_notrans", False):
         MIN_DP = config["params"]["run_genotyping"]["minDP"]
         MAX_DP = config["params"]["run_genotyping"]["maxDP"]
@@ -178,7 +152,7 @@ def get_final_targets(wildcards):
                     targets.append(f"results/genotyping_notrans/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.notrans.{s_type}.fmiss{m_val}.vcf.gz")
                     targets.append(f"results/genotyping_notrans/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.notrans.{s_type}.fmiss{m_val}.bcf.stats.ref_bias")
     
-    # 8. Add Genotyping Targets for the rescaled workflow
+    # 7. Add Genotyping Targets for the rescaled workflow
     if config.get("run_genotyping_rescaled", False):
         MIN_DP = config["params"]["run_genotyping"]["minDP"]
         MAX_DP = config["params"]["run_genotyping"]["maxDP"]
@@ -205,9 +179,8 @@ def get_final_targets(wildcards):
 #ADD rules here
 include: "workflow/rules/1.1_mapping.smk"
 include: "workflow/rules/1.2_subsampling.smk"
-include: "workflow/rules/2a_call_genotypes.smk"
-include: "workflow/rules/2b_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
-include: "workflow/rules/2c_call_genotypes_rescaled.smk" #genotyping for historical rescaled BAMs from mapDamage
+include: "workflow/rules/2a_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
+include: "workflow/rules/2b_call_genotypes_rescaled.smk" #genotyping for historical rescaled BAMs from mapDamage
 
 rule all:
     input: get_final_targets

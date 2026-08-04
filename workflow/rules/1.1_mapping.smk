@@ -90,7 +90,7 @@ def get_indices_for_sample(wildcards):
                   ref_name=REF_NAME)
 
 # ==============================================================================
-# 2. PROCESSING RULES (ALIGNMENT, DEDUP, CLIPPING, MASKING)
+# 2. PROCESSING RULES (ALIGNMENT, DEDUP, CLIPPING)
 # ==============================================================================
 
 rule map_modern:
@@ -281,28 +281,6 @@ rule modern_clip_overlap:
         samtools index {output.bam}
       """
 
-rule historical_mask:
-    input: 
-        bam="results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.bam", 
-        bed=config["snp_mask_bed"],
-    output: 
-        bam="results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam",
-        bai="results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam.bai",
-        stats="results/mapping/historical/stats/merged_dedup_merged_masked/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam_bamrefine_stats.tx"
-    log: "logs/mapping/historical_mask/{sample_id}.{ref_name}.merged.dedup.merged.masked.log"
-    benchmark: "benchmarks/mapping/historical_mask/{sample_id}.{ref_name}.json"
-    params: 
-        extra=config["params"]["bamrefine"]["pmd_length_thresholds"]  # length thresholds for bamrefine
-    conda: "../envs/bamrefine.yaml"
-    threads: config.get("threads_mask", 8)
-    shell: 
-        """ 
-        bamrefine --snps {input.bed} --threads {threads} {params.extra} --add-tags {input.bam} {output.bam} &> {log}
-        samtools index {output.bam}
-
-        # Move the auto-generated stats file to the new target directory)
-        mv results/mapping/historical/{wildcards.sample_id}.{wildcards.ref_name}.merged.dedup.merged.masked.bam_bamrefine_stats.txt {output.stats}
-        """
 # ==============================================================================
 # 3. QUALITY CONTROL, Rescaling & REPORTING
 # ==============================================================================
@@ -355,29 +333,17 @@ rule calculate_depth_dedup:
         """
 
 rule bam_stats_final:
-    """Generates samtools stats in the source-specific QC folder for clipped/masked BAMs."""
+    """Generates samtools stats in the source-specific QC folder for clipped/rescaled BAMs."""
     input:  "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.bam"
     output: "results/mapping/{source}/stats/merged_dedup_merged_{stage}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.stats.txt"
     wildcard_constraints:
-        stage="clipped|masked|rescaled"
+        stage="clipped|rescaled"
     log: "logs/mapping/bam_stats/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.stats.log"
     conda: "../envs/vg.yaml"
     shell: "samtools stats {input} 1> {output} 2> {log}"
 
-# rule mapdamage_historical_masked:
-#     """Runs mapDamage on final masked BAMs for historical samples and stores results in the source-specific QC folder.
-#     No rescaling is performed at this point. Only 50% of random reads are sampled to speed up the process."""
-#     input: 
-#         bam = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam",
-#         bai = "results/mapping/historical/{sample_id}.{ref_name}.merged.dedup.merged.masked.bam.bai",
-#         ref = f"{config['reference']}.fa"
-#     output: dir = directory("results/mapping/historical/stats/merged_dedup_merged_masked/mapdamage/{sample_id}.{ref_name}")
-#     log: "logs/mapping/mapdamage/{sample_id}.{ref_name}.merged.dedup.merged.masked.mapdamage.log"
-#     conda: "../envs/mapdamage.yaml"
-#     shell: "mapDamage -i {input.bam} -r {input.ref} -d {output.dir} --downsample=0.5 --merge-reference-sequences &> {log}"
-
 rule calculate_depth_final:
-    """Calculates mean depth for the final clipped/masked BAM files."""
+    """Calculates mean depth for the final clipped/rescaled BAM files."""
     input:
         bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.bam"
     output:
@@ -387,7 +353,7 @@ rule calculate_depth_final:
         mapQ = config.get("mapQ", 30),
         baseQ = config.get("baseQ", 20),
     wildcard_constraints:
-        stage="clipped|masked|rescaled"
+        stage="clipped|rescaled"
     conda: "../envs/vg.yaml"
     log: "logs/mapping/depth/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.regfilt.Q20.q30.depth.log"
     threads: 2
@@ -411,7 +377,7 @@ rule qualimap_dedup_merged:
     shell: "qualimap bamqc -bam {input.bam} -outdir {params.outdir} --java-mem-size=8G --outformat HTML &> {log}"
 
 rule qualimap_final:
-    """Runs Qualimap and stores results in the source-specific QC folder. Handles both clipped and masked BAMs."""
+    """Runs Qualimap and stores results in the source-specific QC folder. Handles both clipped and rescaled BAMs."""
     input: 
         bam = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.bam",
         bai = "results/mapping/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.bam.bai"
@@ -420,7 +386,7 @@ rule qualimap_final:
     params:
         outdir = "results/mapping/{source}/stats/merged_dedup_merged_{stage}/qualimap/{sample_id}.{ref_name}.merged.dedup.merged.{stage}"
     wildcard_constraints:
-        stage="clipped|masked|rescaled"
+        stage="clipped|rescaled"
     log: "logs/mapping/qualimap/{source}/{sample_id}.{ref_name}.merged.dedup.merged.{stage}.qualimap.log"
     conda: "../envs/qualimap.yaml"
     shell: "qualimap bamqc -bam {input.bam} -outdir {params.outdir} --java-mem-size=8G --outformat HTML &> {log}"
@@ -445,7 +411,7 @@ rule multiqc_dedup:
         """
 
 rule multiqc_final:
-    """Runs MultiQC for all final processed samples (clipped for modern, masked for historical) within a source category."""
+    """Runs MultiQC for all final processed samples (clipped for modern, rescaled for historical) within a source category."""
     input:
         stats = lambda w: expand("results/mapping/{source}/stats/merged_dedup_merged_{stage}/{s}.{ref}.merged.dedup.merged.{stage}.stats.txt", 
                                  source=w.source, 
@@ -459,7 +425,7 @@ rule multiqc_final:
                                  ref=REF_NAME)
     output: "results/mapping/{source}/stats/merged_dedup_merged_{stage}/multiqc_{source}_{stage}_report.html"
     wildcard_constraints:
-        stage="clipped|masked|rescaled" 
+        stage="clipped|rescaled" 
     log: "logs/mapping/multiqc/{source}/multiqc_{source}_{stage}.log"
     conda:  "../envs/multiqc.yaml"
     shell:  

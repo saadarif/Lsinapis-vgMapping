@@ -19,7 +19,7 @@ properties:
       Unique identifier for the sequencing run includes information on index of sample and library. 
       Provided as IndexID_LibraryID (e.g., S123_L001). Same samples with the same index (same PCR library)
       but sequenced on different lanes are merged before dedupliction. Same sampqles with different indices 
-      (different PCR libraries) are merged after deduplication but before masking (historical samples) and
+      (different PCR libraries) are merged after deduplication but before rescaling (historical samples) and
       clipping (modern samples).
   fq1:
     type: string

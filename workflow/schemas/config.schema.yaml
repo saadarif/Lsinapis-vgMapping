@@ -7,7 +7,6 @@ required:
   - ref_name
   - reference
   - vg_prefix
-  - snp_mask_bed
   - modern_csv
   - historical_csv
   - params
@@ -24,10 +23,6 @@ properties:
   vg_prefix:
     type: string
     description: "Full path prefix for the variation graph (.xg, .gcsa files)."
-
-  snp_mask_bed:
-    type: string
-    description: "Path to the BED file containing SNPs for masking."
 
   modern_csv:
     type: string
@@ -55,16 +50,6 @@ properties:
 
   params:
     type: object
-    properties:
-      bamrefine:
-        type: object
-        required:
-          - pmd_length_thresholds
-        properties:
-          pmd_length_thresholds:
-            type: string
-            pattern: "^--pmd-length-threshold .+$"
-            description: "Must include the flag and threshold values."
 
   threads_mapping:
     type: integer
