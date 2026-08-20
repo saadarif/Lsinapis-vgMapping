@@ -172,7 +172,48 @@ def get_final_targets(wildcards):
                     # Notice the addition of '.notrans.' in the requested file path
                     targets.append(f"results/genotyping_rescaled/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.rescaled.{s_type}.fmiss{m_val}.vcf.gz")
                     targets.append(f"results/genotyping_rescaled/merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.rescaled.{s_type}.fmiss{m_val}.bcf.stats.ref_bias")
-    
+
+    # 8. Add Diversity Stats targets (individual heterozygosity + pixy pi/dxy/Fst)
+    if config.get("run_diversity_stats", False):
+        MIN_DP = config["params"]["run_genotyping"]["minDP"]
+        MAX_DP = config["params"]["run_genotyping"]["maxDP"]
+        BASEQ = config["baseQ"]
+        MAPQ = config["mapQ"]
+
+        # Summarised for every missingness threshold produced by the genotyping workflows
+        MISSING_VALS = config["params"]["run_genotyping"].get("maxMissing", [0.0])
+        if not isinstance(MISSING_VALS, list):
+            MISSING_VALS = [MISSING_VALS]
+
+        DIV_PARAMS = config["params"].get("run_diversity_stats", {})
+        # Which genotyping workflows / calling modes / site sets to summarise.
+        # pi and dxy are only unbiased with invariant sites present, so allsites
+        # is the default and should be kept for pixy.
+        DIV_DATASETS = DIV_PARAMS.get("datasets", ["notrans", "rescaled"])
+        DIV_CALL_TYPES = DIV_PARAMS.get("call_types", ["indCall", "jointCall"])
+        DIV_SITE_TYPES = DIV_PARAMS.get("site_types", ["allsites"])
+        WINSIZE = DIV_PARAMS.get("window_size", 50000)
+
+        # A dataset is only summarised if its genotyping workflow actually ran,
+        # otherwise the input bcf/vcf would not exist
+        DIV_TOGGLES = {"notrans": "run_genotyping_notrans", "rescaled": "run_genotyping_rescaled"}
+
+        for dataset in DIV_DATASETS:
+            if dataset not in DIV_TOGGLES:
+                print(f"\nERROR: unknown 'datasets' entry '{dataset}' under params: run_diversity_stats. Use 'notrans' and/or 'rescaled'.\n")
+                sys.exit(1)
+            if not config.get(DIV_TOGGLES[dataset], False):
+                continue
+
+            for m_val in MISSING_VALS:
+                for s_type in DIV_SITE_TYPES:
+                    for c_type in DIV_CALL_TYPES:
+                        prefix = f"merged.all.{REF_NAME}.sitefilt.bQ{BASEQ}.mq{MAPQ}.snps5.noIndel.Q30.dp{MIN_DP}-{MAX_DP}.AB.{c_type}.{dataset}.{s_type}.fmiss{m_val}"
+                        # (i) individual heterozygosity from the bcftools stats file
+                        targets.append(f"results/diversity_stats/{dataset}/heterozygosity/{prefix}.bcf.stats.het")
+                        # (ii) pixy pi / dxy / Fst
+                        for stat in ["pi", "dxy", "fst"]:
+                            targets.append(f"results/diversity_stats/{dataset}/pixy/{prefix}.w{WINSIZE}/pixy_{stat}.txt")
 
     return targets
 
@@ -181,6 +222,7 @@ include: "workflow/rules/1.1_mapping.smk"
 include: "workflow/rules/1.2_subsampling.smk"
 include: "workflow/rules/2a_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
 include: "workflow/rules/2b_call_genotypes_rescaled.smk" #genotyping for historical rescaled BAMs from mapDamage
+include: "workflow/rules/3_diversity_stats.smk" #individual heterozygosity from bcftools stats + pixy pi/dxy/Fst
 
 rule all:
     input: get_final_targets

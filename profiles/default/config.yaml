@@ -1,0 +1,26 @@
+# Workflow profile for this pipeline.
+#
+# Snakemake picks up profiles/default automatically when run from the pipeline
+# root, so the settings below apply without passing --workflow-profile.
+# Anything given on the command line overrides what is set here.
+
+# Only use file modification times to decide whether a job needs to rerun.
+# The default also includes the provenance triggers (params, input, code,
+# software-env), and those cascade: an env yaml or rule edit marks the mapping
+# jobs as out of date, every downstream job then sees "input files updated by
+# another job", and a whole finished run is scheduled again. Restricting this to
+# mtime keeps completed mapping/genotyping results in place.
+# NOTE: while this is set, genuine edits to a rule will NOT trigger a rerun of
+# the affected outputs. Force those explicitly, e.g. `-R <rulename>`, or restore
+# the stock behaviour for one run with
+#   --rerun-triggers mtime params input code software-env
+rerun-triggers:
+  - mtime
+
+# The rules declare conda: directives, so environments must be deployed
+software-deployment-method:
+  - conda
+
+# Default parallelism; override per run with --cores N
+cores: 16
+printshellcmds: True

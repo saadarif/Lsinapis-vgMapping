@@ -92,6 +92,24 @@ def get_indices_for_sample(wildcards):
 # ==============================================================================
 # 2. PROCESSING RULES (ALIGNMENT, DEDUP, CLIPPING)
 # ==============================================================================
+# NOTE ON temp() AND THE PER-RUN BAM CHAIN
+# Every BAM between the fastqs and the per-sample merged BAM is wrapped in
+# temp(), i.e. the outputs of map_modern / map_historical -> picard_reorder ->
+# merge_index_lanes -> deduplicate_modern / deduplicate_historical. There is one
+# of these per sequencing run per sample, so keeping them would multiply the disk
+# footprint of the run for files that are never used again once
+# merge_sample_indices has produced {sample_id}.{ref_name}.merged.dedup.merged.bam.
+# Snakemake deletes each one as soon as the last job consuming it finishes.
+#
+# Their absence from results/mapping/ is therefore expected and does NOT by
+# itself schedule any remapping: if the downstream merged BAM exists and is
+# newer, the chain is up to date and Snakemake stops recursing there. What does
+# schedule a remap is a provenance rerun trigger (a changed env yaml or rule
+# body) firing on one of these rules, because that marks its output as needing
+# regeneration and every dependent job then reruns as well. See
+# profiles/default/config.yaml, which pins rerun-triggers to mtime to avoid that.
+# The flip side of temp() is that once a remap IS triggered it starts from the
+# fastqs, since none of the intermediates are on disk to resume from.
 
 rule map_modern:
     """Mapping for paired-end modern reads."""
