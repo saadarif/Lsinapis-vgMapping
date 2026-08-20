@@ -50,9 +50,9 @@ params:
   run_diversity_stats:
     # Which genotyping workflows to summarise: "notrans", "rescaled", or both.
     # A workflow listed here is skipped if its run_genotyping_* toggle is FALSE.
-    datasets: ["notrans", "rescaled"]
+    datasets: ["notrans"]
     # Which calling modes to summarise: "indCall", "jointCall", or both
-    call_types: ["indCall", "jointCall"]
+    call_types: ["jointCall"]
     # pi and dxy are only unbiased when invariant sites are retained, so leave
     # this as allsites for pixy
     site_types: ["allsites"]
@@ -61,7 +61,7 @@ params:
     window_size: 50000
     fst_type: "hudson"  # 'hudson' (Hudson 1992, Bhatia et al. 2013) or 'wc' (Weir & Cockerham 1984)
     n_cores: 8
-    extra: ""  # any additional pixy flags, e.g. "--chunk_size 200000" or "--fst_components"
+    extra: ""  # any additional pixy flags, e.g. ""--sites_file"" to limit to 4D sites etc."
     # pixy reuses the filtered poplist written by the genotyping workflows, which
     # is params: run_genotyping: poplist with drop_samples removed
 
