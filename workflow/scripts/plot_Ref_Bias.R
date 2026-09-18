@@ -49,7 +49,7 @@ message(paste0("  - ", basename(geno_dirs), collapse = "\n"))
 # The wildcard between the call tag and "allsites" may be empty (e.g.
 # ".indCall.allsites...") or contain extra text (".indCall.notrans.allsites..."),
 # so ".*" is used to match zero or more characters.
-suffix <- "\\..*allsites\\.fmiss0\\.0\\.bcf\\.stats\\.ref_bias$"
+suffix <- "\\..*allsites\\.fmiss0\\.1\\.bcf\\.stats\\.ref_bias$"
 call_defs <- list(
   list(label = "Individual call", pattern = paste0("indCall", suffix)),
   list(label = "Joint call", pattern = paste0("jointCall", suffix))
