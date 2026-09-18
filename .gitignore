@@ -4,3 +4,4 @@ benchmarks/
 logs/
 .snakemake/
 .github_tokens
+otherResults/
