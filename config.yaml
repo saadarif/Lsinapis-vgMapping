@@ -23,6 +23,7 @@ run_multiqc: TRUE
 run_genotyping_notrans: TRUE #removes transitions and genotypes over the site_filter_bed, which is more conservative and may be better for low coverage historical samples.
 run_genotyping_rescaled: TRUE #genotyping for historical rescaled BAMs from mapDamage, usining the same site_filter_bed as the notrans workflow,
 run_diversity_stats: TRUE #per-individual heterozygosity from the bcftools stats files, plus windowed pi, dxy and Fst with pixy
+run_relatedness: TRUE #one ANGSD beagle file for all samples, then pairwise R0, R1 and KING-robust kinship with ngsRelate (IBSrelate)
 
 
 # --- Subsampling ---
@@ -64,6 +65,37 @@ params:
     extra: ""  # any additional pixy flags, e.g. ""--sites_file"" to limit to 4D sites etc."
     # pixy reuses the filtered poplist written by the genotyping workflows, which
     # is params: run_genotyping: poplist with drop_samples removed
+
+  run_relatedness:
+    # Which BAM set the genotype likelihoods are built from:
+    #   "dedup"    -> (default) historical deduplicated (unrescaled) + modern
+    #                 clipped, the BAM set the no-transitions genotyping uses.
+    #                 Paired with rm_trans: 1 below by default.
+    #   "rescaled" -> historical mapDamage rescaled + modern clipped (final BAMs).
+    #                 Damage is down-weighted in the base qualities instead of
+    #                 filtered out. Opt in explicitly when that's what's wanted.
+    bam_stage: "dedup"
+    gl_model: 2          # ANGSD -GL: 1=SAMtools, 2=GATK, 3=SOAPsnp, 4=SYK
+    minDP_ind: 3         # -setMinDepthInd, individual dropped from a site below this
+    maxDP_ind: 30        # -setMaxDepthInd, individual dropped from a site above this
+    min_ind_frac: 0.9    # -minInd as a fraction of the samples analysed, counted after
+                         # the per-individual depth filter (rounded up)
+    min_maf: 0.05        # -minMaf
+    snp_pval: "1e-6"     # -SNP_pval, quoted so it stays a string in the file names
+    rm_trans: 1          # -rmTrans, 1 drops A<->G and C<->T sites (damage). Matches
+                         # the default bam_stage: "dedup" above; set to 0 if switching
+                         # to bam_stage: "rescaled", where damage is down-weighted
+                         # in the base qualities instead.
+    extra: ""            # any further ANGSD flags, e.g. "-only_proper_pairs 0 -C 50"
+    threads: 16
+    # Own drop_samples, independent of params: run_genotyping: drop_samples. Empty by
+    # default so every sample is included, since relatedness is often the analysis
+    # used to decide who to drop in the first place. List sample_ids here to exclude
+    # specific samples (e.g. known duplicates/outgroups) instead. But if the depth is too low
+    # for a sample to be included in the genotyping, it will be dropped automatically by ANGSD and not appear in the final relatedness output.
+    drop_samples: []
+    # ngsRelate is run without an allele frequency file, so R0, R1 and KING come from
+    # the pairwise 2D-SFS (the allele-frequency-free IBSrelate estimator)
 
 
 # --- Resource Allocation ---

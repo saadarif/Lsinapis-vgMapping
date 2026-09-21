@@ -215,6 +215,12 @@ def get_final_targets(wildcards):
                         for stat in ["pi", "dxy", "fst"]:
                             targets.append(f"results/diversity_stats/{dataset}/pixy/{prefix}.w{WINSIZE}/pixy_{stat}.txt")
 
+    # 9. Add Relatedness targets (ANGSD beagle for all samples + ngsRelate R0/R1/KING).
+    #    The file names depend on params: run_relatedness, so the list is assembled in
+    #    the rule file and just picked up here.
+    if config.get("run_relatedness", False):
+        targets.extend(RELATEDNESS_TARGETS)
+
     return targets
 
 #ADD rules here
@@ -223,6 +229,7 @@ include: "workflow/rules/1.2_subsampling.smk"
 include: "workflow/rules/2a_call_genotypes_noTrans.smk" #no transitions genotype calling workflow
 include: "workflow/rules/2b_call_genotypes_rescaled.smk" #genotyping for historical rescaled BAMs from mapDamage
 include: "workflow/rules/3_diversity_stats.smk" #individual heterozygosity from bcftools stats + pixy pi/dxy/Fst
+include: "workflow/rules/4_relatedness.smk" #ANGSD beagle genotype likelihoods + ngsRelate IBSrelate R0/R1/KING
 
 rule all:
     input: get_final_targets
