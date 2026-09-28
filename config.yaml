@@ -24,6 +24,8 @@ run_genotyping_notrans: TRUE #removes transitions and genotypes over the site_fi
 run_genotyping_rescaled: TRUE #genotyping for historical rescaled BAMs from mapDamage, usining the same site_filter_bed as the notrans workflow,
 run_diversity_stats: TRUE #per-individual heterozygosity from the bcftools stats files, plus windowed pi, dxy and Fst with pixy
 run_relatedness: TRUE #one ANGSD beagle file for all samples, then pairwise R0, R1 and KING-robust kinship with ngsRelate (IBSrelate)
+run_ld_estimation: TRUE #pairwise LD with ngsLD on the relatedness beagle file, pruned to unlinked SNPs with prune_graph
+run_pca: TRUE #PCA with PCAngsd on the LD-pruned beagle file, after dropping any individuals under params: run_pca: exclude_samples
 
 
 # --- Subsampling ---
@@ -36,6 +38,7 @@ subsample_depth: 15
 mapQ: 30
 baseQ: 20
 
+#Specific params for each workflow, which can be adjusted as needed. See the workflow scripts for more details on what each parameter does.S
 params:
   run_genotyping:
     minDP: 6
@@ -96,6 +99,23 @@ params:
     drop_samples: []
     # ngsRelate is run without an allele frequency file, so R0, R1 and KING come from
     # the pairwise 2D-SFS (the allele-frequency-free IBSrelate estimator)
+
+  run_ld_estimation:
+    max_kb_dist: 4000        # ngsLD --max_kb_dist (KB): compute LD for SNP pairs within this distance
+    prune_max_dist_bp: 50000 # prune_graph distance cutoff, in BASES (not kb): edges beyond this are
+                              # ignored when pruning, independent of max_kb_dist above. Must be <=
+                              # max_kb_dist*1000 to have any effect, since ngsLD never computes LD
+                              # for pairs further apart than max_kb_dist in the first place.
+    min_r2: 0.1               # r2 at/above which two SNPs within prune_max_dist_bp count as linked
+    threads: 10
+
+  run_pca:
+    # Sample IDs to drop from the LD-pruned beagle file before PCA, e.g. close
+    # relatives flagged in params: run_relatedness's ibsrelate.R0R1KING.tsv output
+    # (4_relatedness.smk). Empty by default (PCA on every genotyped sample).
+    exclude_samples: ["LsSpa8", "M8"]
+    threads: 8
+    extra: ""  # any further PCAngsd flags, e.g. "-e 4" to fix the number of eigenvectors
 
 
 # --- Resource Allocation ---

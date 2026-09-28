@@ -221,6 +221,24 @@ def get_final_targets(wildcards):
     if config.get("run_relatedness", False):
         targets.extend(RELATEDNESS_TARGETS)
 
+    # 10. Add LD estimation/pruning targets (ngsLD + prune_graph on the relatedness
+    #     beagle file). The file names depend on params: run_ld_estimation, so the
+    #     list is assembled in the rule file and just picked up here.
+    if config.get("run_ld_estimation", False):
+        targets.extend(LD_TARGETS)
+
+    # 11. Add PCA targets (PCAngsd on the LD-pruned beagle file). Depends on the LD
+    #     estimation workflow having actually run, since its pruned beagle file is
+    #     the input.
+    if config.get("run_pca", False):
+        if not config.get("run_ld_estimation", False):
+            print(
+                "\nERROR: run_pca requires run_ld_estimation to also be TRUE, "
+                "since PCA runs on the LD-pruned beagle file it produces.\n"
+            )
+            sys.exit(1)
+        targets.extend(PCA_TARGETS)
+
     return targets
 
 #ADD rules here
@@ -230,6 +248,8 @@ include: "workflow/rules/2a_call_genotypes_noTrans.smk" #no transitions genotype
 include: "workflow/rules/2b_call_genotypes_rescaled.smk" #genotyping for historical rescaled BAMs from mapDamage
 include: "workflow/rules/3_diversity_stats.smk" #individual heterozygosity from bcftools stats + pixy pi/dxy/Fst
 include: "workflow/rules/4_relatedness.smk" #ANGSD beagle genotype likelihoods + ngsRelate IBSrelate R0/R1/KING
+include: "workflow/rules/5_LD_estimation.smk" #ngsLD + prune_graph: unlinked-SNP beagle file for structure analyses
+include: "workflow/rules/6a_Strucure_angsdPCA.smk" #PCA with PCAngsd on the LD-pruned beagle file
 
 rule all:
     input: get_final_targets
