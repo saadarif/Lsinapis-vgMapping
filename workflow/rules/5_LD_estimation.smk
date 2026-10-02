@@ -42,6 +42,8 @@ PRUNE_TAG = f"{LD_TAG}.prunebp{LD_PRUNE_MAX_BP}.minr2{LD_MIN_R2}"
 PRUNE_PREFIX = f"results/ld/all.{REF_NAME}.{PRUNE_TAG}"
 
 # Requested from the Snakefile target list (section 10)
+#TODO LD_PREFIX.lg. gz can be massive and should be deleted once
+#*prunes.beagle.gz is generated, but this is not done automatically yet.
 LD_TARGETS = [
     f"{LD_PREFIX}.ld.gz",
     f"{PRUNE_PREFIX}.unlinked.pos",
@@ -73,6 +75,7 @@ rule ngsld_estimate:
         beagle="results/relatedness/all.{ref_name}." + REL_TAG + ".beagle.gz",
     output:
         pos="results/ld/all.{ref_name}." + LD_TAG + ".pos",
+        #TODO: Make temp file and remove once the pruned beagle is generated, since it can be massive and is not needed downstream.
         ld="results/ld/all.{ref_name}." + LD_TAG + ".ld.gz",
     params:
         nind=N_IND_REL,
