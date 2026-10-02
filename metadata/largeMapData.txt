@@ -1,0 +1,7 @@
+Area	location	latitude	longitude	labels
+Kazakhstan	Kazakhstan	48.52557257	81.63043202	LsKaz
+Spain	Spain	41.39526765	-1.027482637	LsSpa
+Sweden	Sweden	59.7953562	16.33960784	LsSwe
+GB	Northamptonshire	52.16560426	-0.822626615	Northamptonshire
+GB	Devon	50.86590577	-4.08515636	Devon
+
