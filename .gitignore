@@ -5,3 +5,4 @@ logs/
 .snakemake/
 .github_tokens
 otherResults/
+.claude/settings.local.json
