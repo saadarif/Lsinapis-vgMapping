@@ -108,19 +108,14 @@ rule ngsld_estimate:
 rule ngsld_prune:
     """
     Prunes SNPs down to a set in approximate linkage equilibrium: SNPs within
-    prune_max_dist_bp (bases, see LD_PRUNE_MAX_BP above -- independent of
-    ngsld_estimate's max_kb_dist) with r2 >= min_r2 are treated as an edge
+    prune_max_dist_bp  with r2 >= min_r2 are treated as an edge
     (column_3 = Dist in bp, column_7 = r2 in the .ld file), and prune_graph
     iteratively drops the most connected node until no edges remain, leaving one
-    representative SNP per linked cluster. SNPs that never appear in an edge
-    (i.e. never within prune_max_dist_bp of another SNP that also passed
-    max_kb_dist filtering when the .ld file was built) are, as a side effect,
-    not written to the output either; this matches how prune_graph is used
-    upstream in PopGLen.
+    representative SNP per linked cluster. 
 
     -out is one surviving node per line, formatted "chr:pos" (the same format
     ngsLD used for Pos1/Pos2), which is exactly the "positions to keep" format
-    workflow/scripts/prune_beagle.py expects.
+    workflow/scripts/prune_beagle.py from PopGLen expects.
     """
     input:
         ld="results/ld/all.{ref_name}." + LD_TAG + ".ld.gz",
