@@ -84,6 +84,7 @@ rule ngsld_estimate:
         max_kb=LD_MAX_KB,
         rnd_sample=LD_RND_SAMPLE
     log:
+        #TODO: log and benchmakr files should also carry the tag so they can be differentiated if max_kb_dist is changed and the rule rerun
         "logs/ld/ngsld_estimate_{ref_name}.log",
     benchmark:
         "benchmarks/ld/ngsld_estimate_{ref_name}.benchmark"

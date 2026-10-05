@@ -63,7 +63,7 @@ snakemake              # actual run
   `PCA_TAG` (`excl-none` or `excl-<sorted-sample-ids>`) → `ADMIX_TAG`
   (= `PRUNE_TAG.PCA_TAG`, K goes in the file name as `.K{kvalue}`). A new stage
   consuming an existing output should depend on the upstream tag/prefix
-  variable directly (e.g. `PRUNE_TAG`), not re-derive or hardcode it.
+  variable directly (e.g. `PRUNE_TAG`), not re-derive or hardcode it. Log and benchmark files should also contain tags to they can be differentiated from different runs of the rule
 - **conda: vs container:** default to `conda:` with a pinned bioconda/
   conda-forge env. Only reach for `container:` when the tool genuinely has no
   bioconda/conda-forge package (checked via `bioconda-recipes` GitHub
