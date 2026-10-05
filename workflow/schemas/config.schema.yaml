@@ -15,7 +15,7 @@ properties:
   ref_name:
     type: string
     description: "Short name for the reference genome used in naming outputs."
-  
+
   reference:
     type: string
     description: "Full path to the reference FASTA (without .fa extension)."
@@ -24,17 +24,61 @@ properties:
     type: string
     description: "Full path prefix for the variation graph (.xg, .gcsa files)."
 
-  modern_tsv:
+  site_filter_bed:
+    type: string
+    description: "BED file of target regions to retain (no repeats, sex chromosomes, mtDNA, low mappability, ...)."
+
+  modern_csv:
     type: string
     description: "Path to the TSV/CSV metadata for modern samples."
 
-  historical_tsv:
+  historical_csv:
     type: string
     description: "Path to the TSV/CSV metadata for historical samples."
 
+  # --- Analysis Toggles ---
   run_multiqc:
     type: boolean
     default: true
+
+  run_genotyping_notrans:
+    type: boolean
+    description: "bcftools genotyping with transitions removed."
+
+  run_genotyping_rescaled:
+    type: boolean
+    description: "bcftools genotyping on mapDamage-rescaled historical BAMs."
+
+  run_diversity_stats:
+    type: boolean
+    description: "Per-individual heterozygosity plus windowed pi, dxy and Fst with pixy."
+
+  run_relatedness:
+    type: boolean
+    description: "ANGSD beagle file for all samples, then pairwise R0, R1 and KING with ngsRelate."
+
+  run_ld_estimation:
+    type: boolean
+    description: "Pairwise LD with ngsLD, pruned to unlinked SNPs with prune_graph."
+
+  run_pca:
+    type: boolean
+    description: "PCA with PCAngsd on the LD-pruned beagle file. Requires run_ld_estimation."
+
+  run_admixture:
+    type: boolean
+    description: "NGSadmix for K = 1..max_k plus evalAdmix, on the same beagle file as the PCA. Requires run_ld_estimation."
+
+  # --- Subsampling ---
+  subsample_samples:
+    type: array
+    items:
+      type: string
+    description: "Sample IDs to subsample to subsample_depth."
+
+  subsample_depth:
+    type: number
+    exclusiveMinimum: 0
 
   mapQ:
     type: integer
@@ -48,10 +92,183 @@ properties:
     maximum: 30
     default: 20
 
+  # --- Per-workflow parameters ---
   params:
     type: object
+    properties:
+      run_genotyping:
+        type: object
+        properties:
+          minDP:
+            type: integer
+            minimum: 0
+          maxDP:
+            type: integer
+            minimum: 1
+          maxMissing:
+            description: "Maximum fraction of missing genotypes per site; one value or a list of values."
+            oneOf:
+              - type: number
+                minimum: 0
+                maximum: 1
+              - type: array
+                items:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+          drop_samples:
+            type: array
+            items:
+              type: string
+          poplist:
+            type: string
+            description: "Two-column file (sample_id, population), no header. Also used by pixy."
+        required:
+          - minDP
+          - maxDP
+
+      run_diversity_stats:
+        type: object
+        properties:
+          datasets:
+            type: array
+            items:
+              type: string
+              enum: ["notrans", "rescaled"]
+          call_types:
+            type: array
+            items:
+              type: string
+              enum: ["indCall", "jointCall"]
+          site_types:
+            type: array
+            items:
+              type: string
+              enum: ["allsites", "biallelic"]
+          window_size:
+            type: integer
+            minimum: 1
+          fst_type:
+            type: string
+          n_cores:
+            type: integer
+            minimum: 1
+          extra:
+            type: string
+
+      run_relatedness:
+        type: object
+        properties:
+          bam_stage:
+            type: string
+            enum: ["dedup", "rescaled"]
+          gl_model:
+            type: integer
+            enum: [1, 2, 3, 4]
+            description: "ANGSD -GL: 1=SAMtools, 2=GATK, 3=SOAPsnp, 4=SYK."
+          minDP_ind:
+            type: integer
+            minimum: 0
+          maxDP_ind:
+            type: integer
+            minimum: 1
+          min_ind_frac:
+            type: number
+            minimum: 0
+            maximum: 1
+          min_maf:
+            type: number
+            minimum: 0
+            maximum: 0.5
+          snp_pval:
+            type: [string, number]
+          rm_trans:
+            type: integer
+            enum: [0, 1]
+          extra:
+            type: string
+          threads:
+            type: integer
+            minimum: 1
+          drop_samples:
+            type: array
+            items:
+              type: string
+
+      run_ld_estimation:
+        type: object
+        properties:
+          max_kb_dist:
+            type: number
+            minimum: 0
+            description: "ngsLD --max_kb_dist, in kb."
+          prune_max_dist_bp:
+            type: integer
+            minimum: 1
+            description: "prune_graph distance cutoff, in bases."
+          min_r2:
+            type: number
+            minimum: 0
+            maximum: 1
+          threads:
+            type: integer
+            minimum: 1
+
+      run_pca:
+        type: object
+        properties:
+          exclude_samples:
+            type: array
+            items:
+              type: string
+            description: "Sample IDs dropped from the LD-pruned beagle file before PCA and admixture."
+          threads:
+            type: integer
+            minimum: 1
+          extra:
+            type: string
+
+      run_admixture:
+        type: object
+        properties:
+          max_k:
+            type: integer
+            minimum: 1
+            default: 5
+            description: "NGSadmix is run for every K from 1 to max_k."
+          minreps:
+            type: integer
+            minimum: 3
+            default: 20
+            description: "Replicates per K before convergence is first checked."
+          reps:
+            type: integer
+            minimum: 3
+            default: 100
+            description: "Maximum replicates per K if they never converge."
+          thresh:
+            type: number
+            exclusiveMinimum: 0
+            default: 2
+            description: "Converged when the 3 highest-likelihood replicates are within this many log-likelihood units."
+          threads:
+            type: integer
+            minimum: 1
+            default: 4
+          extra:
+            type: string
+            default: ""
+            description: "Any further NGSadmix flags."
+          poplist:
+            type: string
+            default: "Pops.txt"
+            description: "Two-column file (sample_id, population), no header, covering every sample in the beagle file."
 
   threads_mapping:
     type: integer
     minimum: 1
     default: 16
+
+  threads_dedup:
+    type: integer
+    minimum: 1

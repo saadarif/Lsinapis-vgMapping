@@ -26,6 +26,7 @@ run_diversity_stats: TRUE #per-individual heterozygosity from the bcftools stats
 run_relatedness: TRUE #one ANGSD beagle file for all samples, then pairwise R0, R1 and KING-robust kinship with ngsRelate (IBSrelate)
 run_ld_estimation: TRUE #pairwise LD with ngsLD on the relatedness beagle file, pruned to unlinked SNPs with prune_graph
 run_pca: TRUE #PCA with PCAngsd on the LD-pruned beagle file, after dropping any individuals under params: run_pca: exclude_samples
+run_admixture: FALSE #NGSadmix for K = 1..max_k (replicated to convergence) + evalAdmix model fit, on the same beagle file as the PCA
 
 
 # --- Subsampling ---
@@ -116,6 +117,21 @@ params:
     exclude_samples: ["LsSpa8", "M8"]
     threads: 8
     extra: ""  # any further PCAngsd flags, e.g. "-e 4" to fix the number of eigenvectors
+
+  run_admixture:
+    # Runs on the same beagle file as the PCA, so the individuals dropped are
+    # the ones under params: run_pca: exclude_samples above.
+    max_k: 7       # NGSadmix is run for every K from 1 to max_k
+    minreps: 20    # replicates per K before convergence is first checked
+    reps: 100      # maximum replicates per K if they never converge
+    thresh: 2      # converged when the 3 highest-likelihood replicates are within
+                   # this many log-likelihood units of each other. The best-fit K
+                   # is the highest K that converged.
+    threads: 4     # per K (NGSadmix -P, evalAdmix -P); different Ks run in parallel
+    extra: ""      # any further NGSadmix flags, e.g. "-minMaf 0.05"
+    # Two columns, sample_id and population, no header. Only used to group
+    # individuals in the plots. Must cover every sample in the beagle file.
+    poplist: "Pops.txt"
 
 
 # --- Resource Allocation ---

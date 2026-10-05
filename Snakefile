@@ -239,6 +239,18 @@ def get_final_targets(wildcards):
             sys.exit(1)
         targets.extend(PCA_TARGETS)
 
+    # 12. Add admixture targets (NGSadmix for K = 1..max_k + evalAdmix, on the same
+    #     beagle file PCAngsd uses). Like the PCA, depends on the LD estimation
+    #     workflow having actually run, since its pruned beagle file is the input.
+    if config.get("run_admixture", False):
+        if not config.get("run_ld_estimation", False):
+            print(
+                "\nERROR: run_admixture requires run_ld_estimation to also be TRUE, "
+                "since NGSadmix runs on the LD-pruned beagle file it produces.\n"
+            )
+            sys.exit(1)
+        targets.extend(ADMIX_TARGETS)
+
     return targets
 
 #ADD rules here
@@ -250,6 +262,7 @@ include: "workflow/rules/3_diversity_stats.smk" #individual heterozygosity from 
 include: "workflow/rules/4_relatedness.smk" #ANGSD beagle genotype likelihoods + ngsRelate IBSrelate R0/R1/KING
 include: "workflow/rules/5_LD_estimation.smk" #ngsLD + prune_graph: unlinked-SNP beagle file for structure analyses
 include: "workflow/rules/6a_Strucure_angsdPCA.smk" #PCA with PCAngsd on the LD-pruned beagle file
+include: "workflow/rules/6b_Structure_NGadmix.smk" #NGSadmix (K = 1..max_k, replicated to convergence) + evalAdmix on the same beagle file as the PCA
 
 rule all:
     input: get_final_targets
