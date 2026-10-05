@@ -26,8 +26,8 @@ run_diversity_stats: TRUE #per-individual heterozygosity from the bcftools stats
 run_relatedness: TRUE #one ANGSD beagle file for all samples, then pairwise R0, R1 and KING-robust kinship with ngsRelate (IBSrelate)
 run_ld_estimation: TRUE #pairwise LD with ngsLD on the relatedness beagle file, pruned to unlinked SNPs with prune_graph
 run_pca: TRUE #PCA with PCAngsd on the LD-pruned beagle file, after dropping any individuals under params: run_pca: exclude_samples
-run_admixture: FALSE #NGSadmix for K = 1..max_k (replicated to convergence) + evalAdmix model fit, on the same beagle file as the PCA
-run_roh: FALSE #runs ROH on specified vcf files
+run_admixture: TRUE #NGSadmix for K = 1..max_k (replicated to convergence) + evalAdmix model fit, on the same beagle file as the PCA
+run_roh: TRUE #runs ROH on specified vcf files
 
 # --- Subsampling ---
 #Ids of samples in quotes that need to be susbsampled
@@ -102,7 +102,7 @@ params:
     # the pairwise 2D-SFS (the allele-frequency-free IBSrelate estimator)
 
   run_ld_estimation:
-    max_kb_dist_ld-est: 4000        # ngsLD --max_kb_dist (KB): compute LD for SNP pairs within this distance
+    max_kb_dist_ld-est: 50        # ngsLD --max_kb_dist (KB): compute LD for SNP pairs within this distance
     rnd_sample_ld-est: 1.00          # ngsLD --rnd_sample: randomly sample this fraction of SNPs for LD estimation..
     threads_ld-est: 10  #threads for ngsLD estimate step
     prune_max_dist_bp: 50000 # prune_graph distance cutoff, in BASES (not kb): edges beyond this are
