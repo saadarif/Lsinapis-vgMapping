@@ -102,9 +102,10 @@ params:
     # the pairwise 2D-SFS (the allele-frequency-free IBSrelate estimator)
 
   run_ld_estimation:
-    max_kb_dist_ld-est: 50        # ngsLD --max_kb_dist (KB): compute LD for SNP pairs within this distance
+    max_kb_dist_ld-est: 4000        # ngsLD --max_kb_dist (KB): compute LD for SNP pairs within this distance
     rnd_sample_ld-est: 1.00          # ngsLD --rnd_sample: randomly sample this fraction of SNPs for LD estimation..
     threads_ld-est: 10  #threads for ngsLD estimate step
+    prune_graph: /mnt/sda/saad/tools/prune_graph/target/release/prune_graph #use local version of prune_graph, which is faster than the container version
     prune_max_dist_bp: 50000 # prune_graph distance cutoff, in BASES (not kb): edges beyond this are
                               # ignored when pruning, independent of max_kb_dist above. Must be <=
                               # max_kb_dist*1000 to have any effect, since ngsLD never computes LD

@@ -60,7 +60,7 @@ rule pca_exclude_beagle:
     params:
         cols=PCA_EXCLUDE_COLS_STR,
     log:
-        "logs/structure/pca_exclude_beagle_{ref_name}.log",
+        "logs/structure/pca_exclude_beagle_{ref_name}." + PRUNE_TAG + "." + PCA_TAG + ".log",
     # No conda: env: cut/zcat/gzip/ln are plain coreutils, same as e.g.
     # individual_heterozygosity in 3_diversity_stats.smk.
     shell:
@@ -93,9 +93,9 @@ rule pca_pcangsd:
         prefix=lambda wildcards, output: output.cov[: -len(".cov")],
         extra=PCA_EXTRA,
     log:
-        "logs/structure/pca_pcangsd_{ref_name}.log",
+        "logs/structure/pca_pcangsd_{ref_name}." + PRUNE_TAG + "." + PCA_TAG + ".log",
     benchmark:
-        "benchmarks/structure/pca_pcangsd_{ref_name}.benchmark"
+        "benchmarks/structure/pca_pcangsd_{ref_name}." + PRUNE_TAG + "." + PCA_TAG + ".benchmark"
     conda:
         "../envs/pcangsd.yaml"
     threads: PCA_THREADS

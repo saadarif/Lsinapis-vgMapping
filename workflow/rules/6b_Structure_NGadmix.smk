@@ -121,9 +121,9 @@ rule ngsadmix:
     wildcard_constraints:
         kvalue=r"\d+",
     log:
-        "logs/structure/ngsadmix_{ref_name}.K{kvalue}.log",
+        "logs/structure/ngsadmix_{ref_name}.K{kvalue}." + ADMIX_TAG + ".log",
     benchmark:
-        "benchmarks/structure/ngsadmix_{ref_name}.K{kvalue}.benchmark"
+        "benchmarks/structure/ngsadmix_{ref_name}.K{kvalue}." + ADMIX_TAG + ".benchmark"
     conda:
         "../envs/angsd.yaml"
     threads: ADMIX_THREADS
@@ -184,9 +184,9 @@ rule evaladmix:
     wildcard_constraints:
         kvalue=r"\d+",
     log:
-        "logs/structure/evaladmix_{ref_name}.K{kvalue}.log",
+        "logs/structure/evaladmix_{ref_name}.K{kvalue}." + ADMIX_TAG + ".log",
     benchmark:
-        "benchmarks/structure/evaladmix_{ref_name}.K{kvalue}.benchmark"
+        "benchmarks/structure/evaladmix_{ref_name}.K{kvalue}." + ADMIX_TAG + ".benchmark"
     container:
         "docker://ghcr.io/zjnolen/evaladmix:0.961"
     threads: ADMIX_THREADS

@@ -24,6 +24,7 @@ LD_MAX_KB = LD_PARAMS.get("max_kb_dist_ld-est", 4000)  # ngsLD --max_kb_dist (kb
 # compute LD over a wide window for decay analysis while pruning more tightly.
 # Only has an effect while <= LD_MAX_KB * 1000; prune_graph never sees a pair
 # further apart than that, since ngsLD didn't compute LD for it in the first place.
+EXEC_PRUNE_GRAPH = LD_PARAMS.get("prune_graph", "prune_graph")  # path to prune_graph executable
 LD_RND_SAMPLE = LD_PARAMS.get("rnd_sample_ld-est", 1.00)  # ngsLD --rnd_sample
 LD_PRUNE_MAX_BP = LD_PARAMS.get("prune_max_dist_bp", 50000)
 if LD_PRUNE_MAX_BP > LD_MAX_KB * 1000:
@@ -84,10 +85,9 @@ rule ngsld_estimate:
         max_kb=LD_MAX_KB,
         rnd_sample=LD_RND_SAMPLE
     log:
-        #TODO: log and benchmakr files should also carry the tag so they can be differentiated if max_kb_dist is changed and the rule rerun
-        "logs/ld/ngsld_estimate_{ref_name}.log",
+        "logs/ld/ngsld_estimate_{ref_name}." + LD_TAG + ".log",
     benchmark:
-        "benchmarks/ld/ngsld_estimate_{ref_name}.benchmark"
+        "benchmarks/ld/ngsld_estimate_{ref_name}." + LD_TAG + ".benchmark"
     container:
         NGSLD_CONTAINER
     threads: LD_THREADS
@@ -126,20 +126,19 @@ rule ngsld_prune:
     output:
         pos="results/ld/all.{ref_name}." + PRUNE_TAG + ".unlinked.pos",
     params:
+        exe=EXEC_PRUNE_GRAPH,
         max_bp=LD_PRUNE_MAX_BP,
         min_r2=LD_MIN_R2,
     log:
-        "logs/ld/ngsld_prune_{ref_name}.log",
+        "logs/ld/ngsld_prune_{ref_name}." + PRUNE_TAG + ".log",
     benchmark:
-        "benchmarks/ld/ngsld_prune_{ref_name}.benchmark"
-    container:
-        NGSLD_CONTAINER
+        "benchmarks/ld/ngsld_prune_{ref_name}." + PRUNE_TAG + ".benchmark"
     threads: PRUNE_THREADS
     shell:
         """
-        (zcat {input.ld} | prune_graph --n-threads {threads} \
-            --weight-field column_7 \
-            --weight-filter "column_3 <= {params.max_bp} && column_7 >= {params.min_r2}" \
+        (zcat {input.ld} | {params.exe} --n-threads {threads} \
+            --weight column_7 \
+            --filter "column_3 <= {params.max_bp} && column_7 >= {params.min_r2}" \
             --verbose --out {output.pos}) &> {log}
         """
 
@@ -158,7 +157,7 @@ rule prune_beagle:
     output:
         beagle="results/ld/all.{ref_name}." + PRUNE_TAG + ".pruned.beagle.gz",
     log:
-        "logs/ld/prune_beagle_{ref_name}.log",
+        "logs/ld/prune_beagle_{ref_name}." + PRUNE_TAG + ".log",
     benchmark:
         "benchmarks/ld/prune_beagle_{ref_name}.benchmark"
     conda:

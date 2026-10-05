@@ -98,9 +98,9 @@ rule bcftools_roh:
         rec_rate = ROH_REC_RATE,
         extra = ROH_EXTRA,
     log:
-        "logs/roh/bcftools/{dataset}/bcftools_roh_{prefix}.log",
+        "logs/roh/bcftools/{dataset}/bcftools_roh_{prefix}." + ROH_TAG + ".log",
     benchmark:
-        "benchmarks/roh/bcftools/{dataset}/bcftools_roh_{prefix}.benchmark"
+        "benchmarks/roh/bcftools/{dataset}/bcftools_roh_{prefix}." + ROH_TAG + ".benchmark"
     conda:
         "../envs/bcftools121.yaml"
     threads: ROH_THREADS
