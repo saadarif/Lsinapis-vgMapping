@@ -1,6 +1,6 @@
 """
 Subsets a beagle genotype likelihood file (gzipped) down to the unlinked SNPs
-picked by prune_graph in the ngsld_prune rule (workflow/rules/5_LD_estimation.smk).
+picked by prune_graph in the ngsld_prune rule (workflow/rules/5_LD_pruning.smk).
 
 Called via Snakemake's `script:` directive, so `snakemake.input`, `snakemake.output`
 and `snakemake.log` are injected automatically; see that rule for how the two

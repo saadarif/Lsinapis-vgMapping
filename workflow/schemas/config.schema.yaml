@@ -69,6 +69,10 @@ properties:
     type: boolean
     description: "NGSadmix for K = 1..max_k plus evalAdmix, on the same beagle file as the PCA. Requires run_ld_estimation."
 
+  run_roh:
+    type: boolean
+    description: "Runs of homozygosity with bcftools roh on the biallelic BCFs of the genotyping workflows."
+
   # --- Subsampling ---
   subsample_samples:
     type: array
@@ -263,6 +267,33 @@ properties:
             type: string
             default: "Pops.txt"
             description: "Two-column file (sample_id, population), no header, covering every sample in the beagle file."
+
+      run_roh:
+        type: object
+        properties:
+          datasets:
+            type: array
+            items:
+              type: string
+              enum: ["notrans", "rescaled"]
+            default: ["notrans"]
+          call_types:
+            type: array
+            items:
+              type: string
+              enum: ["indCall", "jointCall"]
+            default: ["jointCall"]
+          rec_rate:
+            type: [string, number]
+            default: "1e-8"
+            description: "bcftools roh -M: recombination rate per bp."
+          extra:
+            type: string
+            default: ""
+          threads:
+            type: integer
+            minimum: 1
+            default: 4
 
   threads_mapping:
     type: integer

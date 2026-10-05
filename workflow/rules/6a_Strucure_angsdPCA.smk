@@ -1,7 +1,7 @@
 # ==============================================================================
 # POPULATION STRUCTURE: PCA FROM GENOTYPE LIKELIHOODS (PCAngsd)
 #   (i)  Drop any individuals listed under params: run_pca: exclude_samples from
-#        the LD-pruned, unlinked-SNP beagle file built in 5_LD_estimation.smk
+#        the LD-pruned, unlinked-SNP beagle file built in 5_LD_pruning.smk
 #   (ii) Run PCA directly on genotype likelihoods with PCAngsd
 #
 # Individuals are columns in an ANGSD beagle file, three per sample (one column

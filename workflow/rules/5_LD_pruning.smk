@@ -17,13 +17,14 @@
 # ==============================================================================
 LD_PARAMS = config.get("params", {}).get("run_ld_estimation", {})
 
-LD_MAX_KB = LD_PARAMS.get("max_kb_dist", 4000)  # ngsLD --max_kb_dist (kb)
+LD_MAX_KB = LD_PARAMS.get("max_kb_dist_ld-est", 4000)  # ngsLD --max_kb_dist (kb)
 # prune_graph's own distance cutoff, in BASES rather than kb, and independent of
 # LD_MAX_KB above: ngsLD computes LD out to LD_MAX_KB, but prune_graph can be
 # told to only treat the closer subset of those pairs as "linked" edges, e.g. to
 # compute LD over a wide window for decay analysis while pruning more tightly.
 # Only has an effect while <= LD_MAX_KB * 1000; prune_graph never sees a pair
 # further apart than that, since ngsLD didn't compute LD for it in the first place.
+LD_RND_SAMPLE = LD_PARAMS.get("rnd_sample_ld-est", 1.00)  # ngsLD --rnd_sample
 LD_PRUNE_MAX_BP = LD_PARAMS.get("prune_max_dist_bp", 50000)
 if LD_PRUNE_MAX_BP > LD_MAX_KB * 1000:
     print(
@@ -31,12 +32,13 @@ if LD_PRUNE_MAX_BP > LD_MAX_KB * 1000:
         f"is larger than max_kb_dist ({LD_MAX_KB} kb = {LD_MAX_KB * 1000} bp); ngsLD never "
         "computes LD beyond max_kb_dist, so prune_max_dist_bp has no effect past that point.\n"
     )
-LD_MIN_R2 = LD_PARAMS.get("min_r2", 0.1)  # prune_graph edge threshold
-LD_THREADS = LD_PARAMS.get("threads", 10)
+LD_MIN_R2 = LD_PARAMS.get("prune_min_r2", 0.1)  # prune_graph edge threshold
+LD_THREADS = LD_PARAMS.get("threads_ld-est", 10) # threats for ld-est
+PRUNE_THREADS = LD_PARAMS.get("threads_prune", 4) #threads for prune_graph
 
 NGSLD_CONTAINER = "docker://ghcr.io/zjnolen/ngsld:1.2.0"
 
-LD_TAG = f"{REL_TAG}.maxkb{LD_MAX_KB}"
+LD_TAG = f"{REL_TAG}.maxkb{LD_MAX_KB}.rndsample{LD_RND_SAMPLE}"
 LD_PREFIX = f"results/ld/all.{REF_NAME}.{LD_TAG}"
 PRUNE_TAG = f"{LD_TAG}.prunebp{LD_PRUNE_MAX_BP}.minr2{LD_MIN_R2}"
 PRUNE_PREFIX = f"results/ld/all.{REF_NAME}.{PRUNE_TAG}"
@@ -80,6 +82,7 @@ rule ngsld_estimate:
     params:
         nind=N_IND_REL,
         max_kb=LD_MAX_KB,
+        rnd_sample=LD_RND_SAMPLE
     log:
         "logs/ld/ngsld_estimate_{ref_name}.log",
     benchmark:
@@ -97,7 +100,7 @@ rule ngsld_estimate:
 
         ngsLD --geno {input.beagle} --n_ind {params.nind} --n_sites $nsites \
             --pos {output.pos} --probs --n_threads {threads} \
-            --max_kb_dist {params.max_kb} \
+            --max_kb_dist {params.max_kb} --rnd_sample {params.rnd_sample} \
             | gzip > {output.ld}) &> {log}
         """
 
@@ -130,13 +133,13 @@ rule ngsld_prune:
         "benchmarks/ld/ngsld_prune_{ref_name}.benchmark"
     container:
         NGSLD_CONTAINER
-    threads: 4
+    threads: PRUNE_THREADS
     shell:
         """
         (zcat {input.ld} | prune_graph --n-threads {threads} \
             --weight-field column_7 \
             --weight-filter "column_3 <= {params.max_bp} && column_7 >= {params.min_r2}" \
-            --out {output.pos}) &> {log}
+            --verbose --out {output.pos}) &> {log}
         """
 
 

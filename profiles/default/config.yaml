@@ -18,7 +18,7 @@ rerun-triggers:
   - mtime
 
 # Most rules declare conda: directives, so environments must be deployed that
-# way. Two rules (ngsld_estimate, ngsld_prune in 5_LD_estimation.smk) declare
+# way. Two rules (ngsld_estimate, ngsld_prune in 5_LD_pruning.smk) declare
 # container: instead, since ngsLD and prune_graph have no conda package -
 # apptainer needs to be enabled too for those to run.
 software-deployment-method:

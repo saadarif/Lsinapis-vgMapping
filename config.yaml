@@ -27,7 +27,7 @@ run_relatedness: TRUE #one ANGSD beagle file for all samples, then pairwise R0, 
 run_ld_estimation: TRUE #pairwise LD with ngsLD on the relatedness beagle file, pruned to unlinked SNPs with prune_graph
 run_pca: TRUE #PCA with PCAngsd on the LD-pruned beagle file, after dropping any individuals under params: run_pca: exclude_samples
 run_admixture: FALSE #NGSadmix for K = 1..max_k (replicated to convergence) + evalAdmix model fit, on the same beagle file as the PCA
-
+run_roh: FALSE #runs ROH on specified vcf files
 
 # --- Subsampling ---
 #Ids of samples in quotes that need to be susbsampled
@@ -102,13 +102,15 @@ params:
     # the pairwise 2D-SFS (the allele-frequency-free IBSrelate estimator)
 
   run_ld_estimation:
-    max_kb_dist: 4000        # ngsLD --max_kb_dist (KB): compute LD for SNP pairs within this distance
+    max_kb_dist_ld-est: 4000        # ngsLD --max_kb_dist (KB): compute LD for SNP pairs within this distance
+    rnd_sample_ld-est: 1.00          # ngsLD --rnd_sample: randomly sample this fraction of SNPs for LD estimation..
+    threads_ld-est: 10  #threads for ngsLD estimate step
     prune_max_dist_bp: 50000 # prune_graph distance cutoff, in BASES (not kb): edges beyond this are
                               # ignored when pruning, independent of max_kb_dist above. Must be <=
                               # max_kb_dist*1000 to have any effect, since ngsLD never computes LD
                               # for pairs further apart than max_kb_dist in the first place.
-    min_r2: 0.1               # r2 at/above which two SNPs within prune_max_dist_bp count as linked
-    threads: 10
+    prune_min_r2: 0.1               # r2 at/above which two SNPs within prune_max_dist_bp count as linked
+    threads_prune: 4  #threads for prune_graph step
 
   run_pca:
     # Sample IDs to drop from the LD-pruned beagle file before PCA, e.g. close
@@ -132,6 +134,14 @@ params:
     # Two columns, sample_id and population, no header. Only used to group
     # individuals in the plots. Must cover every sample in the beagle file.
     poplist: "Pops.txt"
+
+  run_roh:
+    #calls roh on specified vcf files
+    datasets: ["notrans"]
+    # Which calling modes to summarise: "indCall", "jointCall", or both
+    call_types: ["jointCall"]
+    rec_rate: "7.4e-8" #perbase recombination rate, from https://genome.cshlp.org/content/33/5/810.long
+    threads: 6
 
 
 # --- Resource Allocation ---

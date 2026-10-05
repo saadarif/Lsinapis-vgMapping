@@ -251,6 +251,13 @@ def get_final_targets(wildcards):
             sys.exit(1)
         targets.extend(ADMIX_TARGETS)
 
+    # 13. Add runs of homozygosity targets (bcftools roh on the biallelic BCFs of
+    #     the genotyping workflows). Which datasets / call types are used depends
+    #     on params: run_roh, so the list is assembled in the rule file (and is
+    #     empty there when run_roh is FALSE).
+    if config.get("run_roh", False):
+        targets.extend(ROH_TARGETS)
+
     return targets
 
 #ADD rules here
@@ -260,9 +267,10 @@ include: "workflow/rules/2a_call_genotypes_noTrans.smk" #no transitions genotype
 include: "workflow/rules/2b_call_genotypes_rescaled.smk" #genotyping for historical rescaled BAMs from mapDamage
 include: "workflow/rules/3_diversity_stats.smk" #individual heterozygosity from bcftools stats + pixy pi/dxy/Fst
 include: "workflow/rules/4_relatedness.smk" #ANGSD beagle genotype likelihoods + ngsRelate IBSrelate R0/R1/KING
-include: "workflow/rules/5_LD_estimation.smk" #ngsLD + prune_graph: unlinked-SNP beagle file for structure analyses
+include: "workflow/rules/5_LD_pruning.smk" #ngsLD + prune_graph: unlinked-SNP beagle file for structure analyses
 include: "workflow/rules/6a_Strucure_angsdPCA.smk" #PCA with PCAngsd on the LD-pruned beagle file
 include: "workflow/rules/6b_Structure_NGadmix.smk" #NGSadmix (K = 1..max_k, replicated to convergence) + evalAdmix on the same beagle file as the PCA
+include: "workflow/rules/7_FroH_bcftools.smk" #runs of homozygosity with bcftools roh on the biallelic BCFs from the genotyping workflows
 
 rule all:
     input: get_final_targets

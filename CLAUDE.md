@@ -33,9 +33,9 @@ snakemake              # actual run
 - `workflow/rules/*.smk` — one file per pipeline stage, numbered in
   dependency order: `1.1_mapping`, `1.2_subsampling`, `2a_call_genotypes_noTrans`,
   `2b_call_genotypes_rescaled`, `3_diversity_stats`, `4_relatedness`,
-  `5_LD_estimation`, `6a_Strucure_angsdPCA` (typo in filename is intentional/
+  `5_LD_pruning`, `6a_Strucure_angsdPCA` (typo in filename is intentional/
   established, don't "fix" it without renaming deliberately),
-  `6b_Structure_NGadmix`. All `include:`d
+  `6b_Structure_NGadmix`, `7_FroH_bcftools`. All `include:`d
   into one global namespace — later files freely reuse Python-level constants
   and functions from earlier ones (e.g. `REF_NAME`, `samples_df`,
   `KEEP_SAMPLES_REL`, `REL_TAG`, `PRUNE_TAG`).
@@ -70,7 +70,7 @@ snakemake              # actual run
   listing, not just `mamba search` — search past cases: `ngsLD`,
   `prune_graph` and `evalAdmix` have neither). When a `container:` rule is added,
   `apptainer` must already be enabled in `profiles/default/config.yaml`
-  (it is, as of `5_LD_estimation.smk`) — no further config needed as long as
+  (it is, as of `5_LD_pruning.smk`) — no further config needed as long as
   the container only touches paths under the repo working directory
   (apptainer auto-binds `$PWD`).
 - **Validate real commands against real data before wiring into a rule.**
@@ -98,7 +98,7 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
 4. `4_relatedness.smk` — one ANGSD beagle file for all samples
    (`gl_model: GATK`, dedup or rescaled BAM stage), then ngsRelate
    (IBSrelate/SFS) for pairwise R0/R1/KING
-5. `5_LD_estimation.smk` — ngsLD (container) → prune_graph (container) →
+5. `5_LD_pruning.smk` — ngsLD (container) → prune_graph (container) →
    `prune_beagle.py` → LD-pruned, unlinked-SNP beagle file
 6. `6a_Strucure_angsdPCA.smk` — drops `params.run_pca.exclude_samples` from
    the pruned beagle, then PCAngsd
@@ -112,6 +112,17 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    `include:`s the rule file; not yet run on the real pruned beagle, which
    does not exist yet (see below). `run_admixture` is FALSE in `config.yaml`
    until `prune_graph` is sorted out.
+8. `7_FroH_bcftools.smk` — `bcftools roh` (`-G30 --ignore-homref --AF-dflt 0.4
+   -M <rec_rate> -O r`, settings from zjnolen/polyommatini-temporal-genomics
+   `bcftools_roh.smk`) on the biallelic BCFs, for every `params.run_roh`
+   dataset (notrans/rescaled) × call type (indCall/jointCall) × every
+   `run_genotyping.maxMissing` value. Output is regions only (`RG` lines) in
+   `results/roh/{dataset}/`. Hand-tested on the four real notrans jointCall
+   BCFs (seconds each; 60 samples); not yet run through Snakemake because the
+   repo was locked by the LD run. `rec_rate: "1e-8"` is bcftools' default, not
+   a *L. sinapis* estimate. bcftools' "lines total/processed" log line looks
+   low (about 11%) because with `--ignore-homref` it counts one sample's
+   non-hom-ref sites; that is expected, not a filter problem.
 
 **Session 2026-10-05 (stage 6b), things not obvious from the code:**
 - `ngsadmix.sh` differs from upstream PopGLen by one line: its last line
@@ -153,12 +164,17 @@ admixture) is waiting on it, and the repo's Snakemake lock is held while it
 runs (`snakemake -n` still works). Open option, not decided: lower
 `max_kb_dist` (pruning only uses pairs within 50 kb) and rerun.
 
-**Next planned stage:** runs of homozygosity (RoH) with `bcftools roh`,
-once the `prune_graph` runtime question is settled one way or the other. No
-rule design decided yet (which genotyping workflow's calls to use, allele
-frequency source, per-population vs. all samples are all open).
-`workflow/envs/bcftools121.yaml` already exists; check `bcftools roh` in
-that env before adding another.
+**Next planned stages** (plan as of 2026-10-05, in this order):
+
+1. RoH summary + plots, added to `7_FroH_bcftools.smk`: per-individual FRoH
+   and plots from the `bcftools_roh` region files. Not designed yet: needs
+   the autosome length for the denominator, a minimum RoH length and length
+   bins; the reference repo's `plot_Froh.R`
+   (zjnolen/polyommatini-temporal-genomics) is the likely starting point.
+2. Effective population size with GONE2, modern samples only, as its own
+   new workflow file. Nothing designed or checked yet: input genotype set,
+   per-population grouping, and whether GONE2 has a bioconda/conda-forge
+   package (check before choosing `conda:` vs `container:`) are all open.
 
 See `HANDOFF_2026-09-28.md` for the detailed session log of stages 5–6a
 (what was tested, how, and why each design choice was made).
