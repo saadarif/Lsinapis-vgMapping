@@ -130,7 +130,7 @@ rule ngsld_prune:
         "benchmarks/ld/ngsld_prune_{ref_name}.benchmark"
     container:
         NGSLD_CONTAINER
-    threads: LD_THREADS
+    threads: 4
     shell:
         """
         (zcat {input.ld} | prune_graph --n-threads {threads} \
