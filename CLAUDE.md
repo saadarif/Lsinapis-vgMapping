@@ -60,7 +60,8 @@ snakemake              # actual run
   upstream tag plus its own params, so file names alone are provenance:
   `REL_TAG` (4_relatedness: bam_stage/site filter/bQ/mq/depth/minInd/maf/pval)
   → `LD_TAG` (adds `.maxkb{N}`) → `PRUNE_TAG` (adds `.prunebp{N}.minr2{N}`) →
-  `PCA_TAG` (`excl-none` or `excl-<sorted-sample-ids>`) → `ADMIX_TAG`
+  `PCA_TAG` (`excl-none` or `excl-<sorted-sample-ids>`, plus
+  `.exclpop-<sorted-populations>` only when populations are excluded) → `ADMIX_TAG`
   (= `PRUNE_TAG.PCA_TAG`, K goes in the file name as `.K{kvalue}`). A new stage
   consuming an existing output should depend on the upstream tag/prefix
   variable directly (e.g. `PRUNE_TAG`), not re-derive or hardcode it. Log and benchmark files should also contain tags to they can be differentiated from different runs of the rule
@@ -100,7 +101,9 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    (IBSrelate/SFS) for pairwise R0/R1/KING
 5. `5_LD_pruning.smk` — ngsLD (container) → prune_graph (container) →
    `prune_beagle.py` → LD-pruned, unlinked-SNP beagle file
-6. `6a_Strucure_angsdPCA.smk` — drops `params.run_pca.exclude_samples` from
+6. `6a_Strucure_angsdPCA.smk` — drops `params.run_pca.exclude_samples`, then
+   every remaining individual of `params.run_pca.exclude_populations`
+   (membership from `params.run_pca.poplist`, default `Pops.txt`), from
    the pruned beagle, then PCAngsd
 7. `6b_Structure_NGadmix.smk` — NGSadmix for K = 1..`params.run_admixture.max_k`
    on `pca_exclude_beagle`'s output (same samples as the PCA), replicated to
@@ -145,7 +148,7 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
 - Testing pattern while the repo is locked by a running job: a scratch
   directory with a small Snakefile that stubs the upstream constants
   (`REF_NAME`, `PRUNE_TAG`, `PCA_TAG`, `KEEP_SAMPLES_REL`,
-  `PCA_EXCLUDE_SAMPLES`, `samples_df`) and `include:`s the one rule file,
+  `PCA_KEEP_SAMPLES`, `samples_df`) and `include:`s the one rule file,
   run with `--conda-prefix`/`--apptainer-prefix` pointing at the repo's
   `.snakemake/`.
 - Test timing, 45,894 sites × 59 individuals, 4 threads, busy machine: 20

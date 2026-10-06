@@ -226,6 +226,16 @@ properties:
             items:
               type: string
             description: "Sample IDs dropped from the LD-pruned beagle file before PCA and admixture."
+          exclude_populations:
+            type: array
+            items:
+              type: string
+            default: []
+            description: "Populations (from poplist) whose remaining individuals are all dropped, after exclude_samples. Empty keeps all populations."
+          poplist:
+            type: string
+            default: "Pops.txt"
+            description: "Two-column file (sample_id, population), no header. Only read when exclude_populations is not empty."
           threads:
             type: integer
             minimum: 1

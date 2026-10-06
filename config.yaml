@@ -100,7 +100,7 @@ params:
     drop_samples: []
     # ngsRelate is run without an allele frequency file, so R0, R1 and KING come from
     # the pairwise 2D-SFS (the allele-frequency-free IBSrelate estimator)
-
+  #TODO should be called run_ld_pruning, nothing is done yet with LD estimation at this stage.
   run_ld_estimation:
     max_kb_dist_ld-est: 4000        # ngsLD --max_kb_dist (KB): compute LD for SNP pairs within this distance
     rnd_sample_ld-est: 1.00          # ngsLD --rnd_sample: randomly sample this fraction of SNPs for LD estimation..
@@ -118,12 +118,22 @@ params:
     # relatives flagged in params: run_relatedness's ibsrelate.R0R1KING.tsv output
     # (4_relatedness.smk). Empty by default (PCA on every genotyped sample).
     exclude_samples: ["LsSpa8", "M8"]
+    # Populations to leave out entirely, applied after exclude_samples above:
+    # every remaining individual of a population listed here is dropped too.
+    # Empty (use all populations) or one or more population names from poplist
+    # below, e.g. ["Kaz"] or ["Kaz", "Spa"]. Named in the output files as
+    # .exclpop-<populations>. Also applies to the admixture analysis, which runs
+    # on the same beagle file.
+    exclude_populations: []
+    # Two columns, sample_id and population, no header. Only read when
+    # exclude_populations is not empty.
+    poplist: "Pops.txt"
     threads: 8
     extra: ""  # any further PCAngsd flags, e.g. "-e 4" to fix the number of eigenvectors
 
   run_admixture:
     # Runs on the same beagle file as the PCA, so the individuals dropped are
-    # the ones under params: run_pca: exclude_samples above.
+    # the ones under params: run_pca: exclude_samples / exclude_populations above.
     max_k: 7       # NGSadmix is run for every K from 1 to max_k
     minreps: 20    # replicates per K before convergence is first checked
     reps: 100      # maximum replicates per K if they never converge

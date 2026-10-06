@@ -45,7 +45,7 @@ ADMIX_KVALUES = list(range(1, ADMIX_MAX_K + 1))
 # Same samples, in the same order, as the columns of the beagle file written by
 # pca_exclude_beagle. NGSadmix writes one .qopt row per individual in beagle
 # column order, so this is also the row order of every .qopt file.
-ADMIX_SAMPLES = [s for s in KEEP_SAMPLES_REL if s not in PCA_EXCLUDE_SAMPLES]
+ADMIX_SAMPLES = PCA_KEEP_SAMPLES
 
 # Nothing of its own is added to the tag: K is in the file names, and the
 # excluded samples are already carried by PCA_TAG.
