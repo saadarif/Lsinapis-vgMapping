@@ -10,7 +10,7 @@ format: html
 library(readr)
 library(dplyr)
 library(stringr)
-library(tidy)
+library(tidyr)
 
 #plotting packages
 library(ggplot2)
