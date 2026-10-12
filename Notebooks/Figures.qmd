@@ -10,6 +10,7 @@ format: html
 library(readr)
 library(dplyr)
 library(stringr)
+library(tidy)
 
 #plotting packages
 library(ggplot2)
@@ -184,7 +185,7 @@ PCPlotPC2_3 <- PCAdf %>%
   guides(fill = guide_legend(override.aes = list(pch = 21))) +
   xlab(paste0("PC2 ", pc2, "%")) +
   ylab(paste0("PC3 ", pc3, "%")) +
-  ggtitle("A") +
+  ggtitle("B") +
   #geom_rect(aes(xmin = -.28, xmax = -.15, ymin = 0.05, ymax = .12), color = "black", fill = #NA,  linetype="dashed", linewidth=0.5) +
   #geom_segment(aes(x = -.28, y = .05, xend = -.33, yend = .03), color="black") +
   #geom_segment(aes(x = -.15, y = .05, xend = -.065, yend = .03), color="black") +
@@ -207,5 +208,138 @@ PCPlotPC2_3 <- PCAdf %>%
 
 
 
+
+```
+
+
+## Individual heterozygosity
+```{r}
+hets0_1 <- read.table(
+  "../results/diversity_stats/notrans/heterozygosity/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.allsites.fmiss0.1.bcf.stats.het",
+  header = T
+)
+
+#combine het data with metadata
+HETdf <- inner_join(
+  hets0_1,
+  infoM,
+  by = c("sample" = "short_specimen_name")
+)
+
+#Hets by group
+hetGroup <- HETdf %>%
+ggplot(aes(x = location_time, y = hetperbp * 1000, fill = location_time)) +
+  geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+  stat_summary(
+    fun.y = mean,
+    geom = "point",
+    size = 6,
+    aes(fill = location_time, pch = Time_hist)
+  ) +
+  geom_jitter(
+    aes(
+      x = location_time,
+      y = hetperbp * 1000,
+      pch = Time_hist,
+      fill = location_time
+    ),
+    size = 2,
+    height = 0,
+    width = 0.3
+  ) +
+  # geom_dotplot(binaxis = "y", stackdir = "center", aes(fill=location_time,pch=Time_hist  ),  dotsize = 0.75) +
+  scale_fill_manual(
+    values = c(devon, devon, northants, northants, swe, kazakh, spain),
+    guide = "none"
+  ) +
+  scale_x_discrete(
+    labels = c("DEVH", "DEV", "NTHH", "NTH", "SWE", "KAZ", "SPA")
+  ) +
+  scale_shape_manual(values = c(hist_pch, modern_pch), guide = "none") +
+  ylab("Heterozygotes/1000 basepairs") +
+  ggtitle("A") +
+  # annotate(geom="segment", x = 3, xend = 4, y = 1.2, yend = 1.2, color = "black", fill = NA, linetype="solid", linewidth=1, lineend="butt") + #add annotation from test results
+  #annotate("text", x = 3.5, y = 1.22, label = expression(italic(p)*" = 0.018"), face="bold", size=3.5) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x = element_blank(),
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title.y = element_text(
+      size = 14,
+      face = "bold",
+      margin = margin(0, 0, 0, 0)
+    ),
+    plot.margin = grid::unit(c(1, 1, 1, 1), "mm"),
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold")
+  )
+
+#GBP hets by time
+
+HetTime <- HETdf %>%
+    filter(Area == "GB") %>%
+    ggplot(aes(x=year, y=hetperbp*1000))+
+    geom_point(aes(fill=location),pch=21,size=3)+
+    scale_fill_manual( values = c(devon,  northants), guide = "none")+
+    theme_bw() +
+    theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x = element_blank(),
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title.y = element_text(
+      size = 14,
+      face = "bold",
+      margin = margin(0, 0, 0, 0)
+    ),
+    plot.margin = grid::unit(c(1, 1, 1, 1), "mm"),
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold")
+  )
+
+
+```
+
+## RoH from bcttools
+```{r}
+#get size of autosomale genome
+genome <- read.table(
+  "../../ref_genome/Leptidea_sinapis-GCA_905404315.1-softmasked.genome",
+  header = F
+)
+#calculate autosomal genome size
+autoGen <- sum(genome$V2[!genome$V1 %in% c("Z", "2", "3")])
+
+
+#read in roh regions output from bcftools
+roh_regs <- read.delim(
+  "../results/roh/bcftools/notrans/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic.fmiss0.1.roh.M7.4e-8.regs.txt",
+  comment.char = "#"
+)
+
+#add col names
+names(roh_regs) <- c(
+  "RG",
+  "Sample",
+  "Chromosome",
+  "Start",
+  "End",
+  "Length_bp",
+  "Number of markers",
+  "Quality"
+)
+
+#filter out non GB samples
+roh_filtered <- roh_regs %>% filter(!startsWith(Sample, "Ls"))
+
+#Calculate Froh in regions greater than 100 kb
+roh_gr100Kb <- roh_filtered %>%
+  filter(Length_bp >= 100000) %>%
+  group_by(Sample) %>%
+  summarise(rohP100 = sum(Length_bp) / autoGen, num_roh=n(), .groups = "drop") %>%
+  #complete(Sample, fill = list(rohP100 = NA)) %>%
+  mutate(rohP100 = replace_na(rohP100, 0))
 
 ```

@@ -102,8 +102,9 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
 4. `4_relatedness.smk` — one ANGSD beagle file for all samples
    (`gl_model: GATK`, dedup or rescaled BAM stage), then ngsRelate
    (IBSrelate/SFS) for pairwise R0/R1/KING
-5. `5_LD_pruning.smk` — ngsLD (container) → prune_graph (container) →
-   `prune_beagle.py` → LD-pruned, unlinked-SNP beagle file
+5. `5_LD_pruning.smk` — ngsLD (container) → prune_graph (local binary, path
+   in `params.run_ld_estimation.prune_graph`) → `prune_beagle.py` →
+   LD-pruned, unlinked-SNP beagle file
 6. `6a_Strucure_angsdPCA.smk` — drops `params.run_pca.exclude_samples`, then
    every remaining individual of `params.run_pca.exclude_populations`
    (membership from `params.run_pca.poplist`, default `Pops.txt`), from
@@ -115,9 +116,8 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    with best-fit K = highest converged K), evalAdmix 0.961 (container) and
    `plot_evaladmix.R` per K. Tested end-to-end on a real slice (every 50th
    site of the relatedness beagle, K = 1-3) via a scratch Snakefile that
-   `include:`s the rule file; not yet run on the real pruned beagle, which
-   does not exist yet (see below). `run_admixture` is FALSE in `config.yaml`
-   until `prune_graph` is sorted out.
+   `include:`s the rule file. The real pruned beagle now exists (see below)
+   and `run_admixture` is TRUE in `config.yaml`.
 8. `7_FroH_bcftools.smk` — `bcftools roh` (`-G30 --ignore-homref --AF-dflt 0.4
    -M <rec_rate> -O r`, settings from zjnolen/polyommatini-temporal-genomics
    `bcftools_roh.smk`) on the biallelic BCFs, for every `params.run_roh`
@@ -200,22 +200,51 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
 samples, 2,294,746 genome-wide SNP sites. Chromosome names are plain
 integers.
 
-**Full-genome LD run (as of 2026-10-05):** `ngsld_estimate` with
-`max_kb_dist: 4000` took 43 h and wrote a 716 GB `.ld.gz`. `ngsld_prune`
-(`prune_graph`, 50 kb / r2 0.1) started 2026-09-30 and was still running after
-5+ days, with no progress output. Everything downstream (`prune_beagle`, PCA,
-admixture) is waiting on it, and the repo's Snakemake lock is held while it
-runs (`snakemake -n` still works). Open option, not decided: lower
-`max_kb_dist` (pruning only uses pairs within 50 kb) and rerun.
+**Full-genome LD run:** `ngsld_estimate` with `max_kb_dist: 4000` took 43 h
+and wrote a 716 GB `.ld.gz`. `ngsld_prune` with the containerised
+`prune_graph` (50 kb / r2 0.1) ran 5+ days without finishing. Resolved (user,
+reported 2026-10-12) by switching to a local build of a recent `prune_graph`
+(`/mnt/sda/saad/tools/prune_graph/target/release/prune_graph`, set in
+`config.yaml`); the pruned beagle in `results/ld/` is dated 2026-10-08 and
+`results/structure/{pca,ngsadmix}` have output.
 
-**Next planned stages** (plan as of 2026-10-05, in this order):
+**Next planned stages** (plan as of 2026-10-12):
 
-1. RoH summary + plots, added to `7_FroH_bcftools.smk`: per-individual FRoH
+1. **Next session: Wolbachia screen + Wolbachia/mtDNA trees, modern samples
+   only**, as a new workflow file. Proposed by Claude on 2026-10-12, NOT yet
+   confirmed by the user; confirm the open points before building.
+   - Inputs the user will provide: a reference mtDNA contig and an assembly
+     of the Wolbachia found in the reference genome (paths go in
+     `config.yaml`).
+   - Proposed steps: (a) combined mtDNA + Wolbachia FASTA, indexed;
+     (b) per modern sample, take reads from the final BAM and map them to it
+     (bwa mem, MAPQ filter, duplicates removed); (c) per-sample Wolbachia
+     breadth of coverage and depth relative to nuclear depth → summary table
+     + infected / uninfected lists, thresholds in config, as a Snakemake
+     checkpoint because later rules depend on the infected set; (d) for
+     infected samples, haploid variant calling (bcftools, ploidy 1) and a
+     depth-masked consensus per sample for Wolbachia and for mtDNA, which
+     gives alignments directly because every sample shares the reference
+     coordinates; (e) IQ-TREE (ModelFinder + ultrafast bootstrap) on each
+     alignment; (f) R script comparing the two trees (tanglegram,
+     Robinson-Foulds distance, optionally IQ-TREE AU topology tests).
+   - Checked on 2026-10-12: the linear reference `.fai` has 49 sequences
+     and none is mtDNA-sized (the only non-chromosome contig is 44 kb), so
+     mtDNA and Wolbachia reads should be among the unmapped reads; the final
+     modern BAMs keep unmapped reads (LsKaz10: 2.16 M of 79.8 M).
+   - Open points: unmapped reads only vs. remapping all reads; infection
+     thresholds; mtDNA tree for infected samples only or all modern samples;
+     outgroups for rooting; whether within-species variation is enough to
+     resolve either tree; possible multiple Wolbachia strains per sample.
+     Tool packaging (bwa, samtools, bcftools, iqtree, R ape/phytools) not
+     yet verified on bioconda/conda-forge.
+2. RoH summary + plots, added to `7_FroH_bcftools.smk`: per-individual FRoH
    and plots from the `bcftools_roh` region files. Not designed yet: needs
    the autosome length for the denominator, a minimum RoH length and length
    bins; the reference repo's `plot_Froh.R`
+3. One the RoH run is complete calculate individuals heterozygosity again as in 3_diversity_stats.smk but this time inside and outside RoHs of a specified size
    (zjnolen/polyommatini-temporal-genomics) is the likely starting point.
-2. Effective population size with GONE2, modern samples only, as its own
+4. Effective population size with GONE2, modern samples only, as its own
    new workflow file. Nothing designed or checked yet: input genotype set,
    per-population grouping, and whether GONE2 has a bioconda/conda-forge
    package (check before choosing `conda:` vs `container:`) are all open.
