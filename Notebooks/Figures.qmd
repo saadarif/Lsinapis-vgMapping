@@ -1,0 +1,211 @@
+---
+title: "Figures"
+format: html
+---
+
+
+## Preliminaries
+```{r}
+#Required packages
+library(readr)
+library(dplyr)
+library(stringr)
+
+#plotting packages
+library(ggplot2)
+library(patchwork)
+
+
+# PLOTTING COLOURS
+northants <- "#444e86"
+devon <- "#c1e7ff"
+spain <- "#ce4717"
+kazakh <- "#25eb81"
+swe <- "#ff7730"
+gb <- "#444e86"
+
+## PLOTTUGING SHAPES
+modern_pch <- 21 # or 19
+hist_pch <- 24 # or 17
+
+## IMAGES
+library(png)
+lsinapis <- readPNG("../metadata/ww.png", native = T)
+
+# METADATA
+#read in the modified info while where location for NHM095 and NHM096 is labelled as Northants,
+# However, the original museum metadata for lat long are perserved. This is the metda to use for most analysis
+infoM <- read_delim(
+  "../metadata/WWinfofile_mod_2026.txt",
+  delim = ",",
+  col_types = cols()
+)
+#add another variable to this data fram that combines location with time to use as a variable for plotting and analysis
+#get theta and new column for plotting
+infoM <- infoM %>%
+  mutate(
+    location_time = str_c(location, Time_hist, sep = "_"),
+    Area_time = str_c(Area, Time_hist, sep = "_")
+  )
+infoM <- infoM %>%
+  mutate(
+    location_time = factor(
+      location_time,
+      levels = c(
+        "Devon_Historical",
+        "Devon_Modern",
+        "Northants_Historical",
+        "Northants_Modern",
+        "Sweden_Modern",
+        "Kazakhstan_Modern",
+        "Spain_Modern"
+      )
+    )
+  )
+
+```
+
+## Angsd PCA
+
+```{r}
+Covmat <- as.matrix(read.table(
+  "../results/structure/pca/all.DTOLREF.dedup.sitefilt.bQ20.mq30.dpInd3-30.minInd0.9.maf0.05.pv1e-6.maxkb4000.rndsample1.0.prunebp50000.minr20.1.excl-LsSpa8-M8.cov"
+))
+eig <- eigen(Covmat)
+
+#order of individuals as prepared for beagle file
+#any excluded invididuals i.e. due to relatdness have been removed
+angsPCAids <- read.table("../results/structure/pca/angsdPCA_ind_ids")
+
+#Make character vector for label for PCs
+PCnames <- vector()
+for (i in 1:dim(eig$vectors)[1]) {
+  PCnames <- c(PCnames, c(paste0("PC", i)))
+}
+
+#add names to columns of eigenvectos
+eigenvecs <- cbind(angsPCAids, eig$vectors)
+names(eigenvecs) <- c("sample_name", PCnames)
+
+#Combine eigenvector with full sample data
+PCAdf <- inner_join(
+  eigenvecs,
+  infoM,
+  by = c("sample_name" = "short_specimen_name")
+)
+
+#caluclate variance explained by PC1,2,3
+pc1 <- round(eig$values[1] / sum(eig$values) * 100, 1)
+pc2 <- round(eig$values[2] / sum(eig$values) * 100, 1)
+pc3 <- round(eig$values[3] / sum(eig$values) * 100, 1)
+
+PCPlotPC1_2 <- PCAdf %>%
+  ggplot(aes(
+    x = PC1,
+    y = PC2,
+    fill = location,
+    pch = Time_hist,
+    label = sample_name
+  )) +
+  geom_point(size = 3.5, alpha = 0.6, color = "black", position = "dodge") +
+  scale_fill_manual(
+    values = c(devon, kazakh, northants, spain, swe),
+    name = "Location:"
+  ) +
+  scale_shape_manual(
+    values = c(hist_pch, modern_pch),
+    name = "Collection Period:"
+  ) +
+  geom_text(
+    data = PCAdf %>% filter(sample_name %in% c("NHM095", "NHM096")),
+    aes(label = "  *"),
+    col = "gray40",
+    size = 8,
+    fontface = "bold",
+    position = position_nudge(x = .00, y = 0.001)
+  ) +
+  # geom_label_repel(
+  #   nudge_x = 0.25, nudge_y = 0.25,
+  #   check_overlap = T
+  # ) +
+  guides(fill = guide_legend(override.aes = list(pch = 21))) +
+  xlab(paste0("PC1 ", pc1, "%")) +
+  ylab(paste0("PC2 ", pc2, "%")) +
+  ggtitle("A") +
+  #geom_rect(aes(xmin = -.28, xmax = -.15, ymin = 0.05, ymax = .12), color = "black", fill = #NA,  linetype="dashed", linewidth=0.5) +
+  #geom_segment(aes(x = -.28, y = .05, xend = -.33, yend = .03), color="black") +
+  #geom_segment(aes(x = -.15, y = .05, xend = -.065, yend = .03), color="black") +
+  coord_fixed(ratio = 1) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(size = 12, face = "bold"),
+    plot.margin = grid::unit(c(1, 5, 1, 1), "mm"),
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.box = "vertical",
+    legend.position = "bottom",
+    legend.margin = margin(0, 0, 0, 0),
+    legend.spacing.x = unit(0, "mm"),
+    legend.spacing.y = unit(0, "mm"),
+    legend.box.margin = margin(-15, -15, -15, -15)
+  )
+
+PCPlotPC2_3 <- PCAdf %>%
+  ggplot(aes(
+    x = PC2,
+    y = PC3,
+    fill = location,
+    pch = Time_hist,
+    label = sample_name
+  )) +
+  geom_point(size = 3.5, alpha = 0.6, color = "black", position = "dodge") +
+  scale_fill_manual(
+    values = c(devon, kazakh, northants, spain, swe),
+    name = "Location:"
+  ) +
+  scale_shape_manual(
+    values = c(hist_pch, modern_pch),
+    name = "Collection Period:"
+  ) +
+  geom_text(
+    data = PCAdf %>% filter(sample_name %in% c("NHM095", "NHM096")),
+    aes(label = "  *"),
+    col = "gray40",
+    size = 8,
+    fontface = "bold",
+    position = position_nudge(x = .00, y = 0.001)
+  ) +
+  # geom_label_repel(
+  #   nudge_x = 0.25, nudge_y = 0.25,
+  #   check_overlap = T
+  # ) +
+  guides(fill = guide_legend(override.aes = list(pch = 21))) +
+  xlab(paste0("PC2 ", pc2, "%")) +
+  ylab(paste0("PC3 ", pc3, "%")) +
+  ggtitle("A") +
+  #geom_rect(aes(xmin = -.28, xmax = -.15, ymin = 0.05, ymax = .12), color = "black", fill = #NA,  linetype="dashed", linewidth=0.5) +
+  #geom_segment(aes(x = -.28, y = .05, xend = -.33, yend = .03), color="black") +
+  #geom_segment(aes(x = -.15, y = .05, xend = -.065, yend = .03), color="black") +
+  coord_fixed(ratio = 1) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(size = 12, face = "bold"),
+    plot.margin = grid::unit(c(1, 5, 1, 1), "mm"),
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.box = "vertical",
+    legend.position = "bottom",
+    legend.margin = margin(0, 0, 0, 0),
+    legend.spacing.x = unit(0, "mm"),
+    legend.spacing.y = unit(0, "mm"),
+    legend.box.margin = margin(-15, -15, -15, -15)
+  )
+
+
+
+
+```

@@ -44,6 +44,9 @@ snakemake              # actual run
   entirely rather than reusing an unrelated env — see
   `individual_heterozygosity` in `3_diversity_stats.smk`.
 - `workflow/scripts/` — Python/R/bash scripts invoked via `script:`.
+- `utilities/` — standalone helper scripts run by hand from the CLI, not
+  wired into Snakemake (no rule, toggle or env). Includes
+  `plot_pixy_modern_windows.R` (see session 2026-10-12 below).
 - `workflow/schemas/config.schema.yaml` — JSON schema for `config.yaml`
   (every toggle + every `params: run_<name>` block). Not wired in: nothing
   calls `validate()` on it. Add the new toggle/params block here whenever a
@@ -154,6 +157,44 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
 - Test timing, 45,894 sites × 59 individuals, 4 threads, busy machine: 20
   replicates took under 1 min at K=1, about 7 min at K=2, about 10 min at
   K=3; all three converged at 20 replicates.
+
+**Session 2026-10-12 (pixy window plots, no new pipeline stage):**
+- `utilities/plot_pixy_modern_windows.R <pixy_dir> [out_prefix] [modern_pops]
+  [min_sites] [min_snps]` reads `pixy_fst.txt`, `pixy_dxy.txt` and
+  `pixy_pi.txt` from one pixy output folder and writes
+  `<out_prefix>_{fst,dxy,pi}.pdf` (default prefix
+  `<pixy_dir>/pixy_modern_windows`). Each PDF is one page: the statistic
+  against genomic windows (chromosomes end to end, every other one on a grey
+  band, line at y = 0), with one stacked panel per modern pair (Fst, dxy) or
+  modern population (pi). Arguments are positional.
+- "Modern" is a hardcoded default, `Spa,Kaz,Swe,Nth,Dev` (everything except
+  `NthH`/`DevH`), which is also the panel order; the y-axis range is computed
+  from the populations passed, so plots of different population sets are not
+  on the same scale. Each statistic has its own y-range. pi's axis is cut at
+  the 99.9th percentile of the plotted pi windows (0.0112 on `fmiss0.2`), and
+  the windows above it (53 of 52,550) are drawn as triangles at the top edge;
+  the user asked for the pi panels to use more of their height and accepted
+  pi and dxy not sharing an axis. dxy is not cut.
+- Default filters: dxy/pi windows need `no_sites >= 100` (`min_sites`), Fst
+  windows need `no_snps >= 10` (`min_snps`; pixy's Fst table has no
+  `no_sites`). Without them a few near-empty windows dominate: pi/dxy reach
+  about 0.11 against a median of 0.004-0.005, and Fst from under 10 SNPs is
+  mostly noise. On `fmiss0.2` modern windows this drops 460 of 105,560 (dxy),
+  230 of 52,780 (pi) and 848 of 105,312 (Fst). The cutoffs are judgement
+  calls, not derived from anything.
+- The plot has no jitter. Negative Fst values are real (Hudson estimator):
+  about 3% of plotted modern-pair windows, 24% for Kaz vs Swe.
+- The user wanted per-window genome scans from the windowed tables, not a
+  summary of the `pixy_*_genomewide.tsv` files (those come from
+  `workflow/scripts/pixy_genomewide_bootstrap.R`, run by hand, and exist only
+  for `fmiss0.1` and `fmiss0.2`).
+- The script needs only `ggplot2` and is written to also run on the system R
+  (`/usr/bin/Rscript`, R 4.5.2 with ggplot2 3.3.6): it uses `size` rather
+  than `linewidth` and base `pdf()` rather than `ggsave()`, whose PNG device
+  fails there with "Graphics API version mismatch". The pixy data has 45
+  chromosomes: 1 and 4-47 (no 2 or 3).
+- Only tested with output to a scratch directory; no plots have been written
+  under `results/` by Claude.
 
 **Real data facts** (2026-09-21 relatedness run, `bam_stage: dedup`): 61
 samples, 2,294,746 genome-wide SNP sites. Chromosome names are plain
