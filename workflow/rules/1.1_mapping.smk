@@ -1,8 +1,9 @@
 # ==============================================================================
 # 1. HELPER FUNCTIONS FOR RULES
 # ==============================================================================
-#Move these to a common.smk file if these are resued elsewhere in the ... 
+#Move these to a common.smk file if these are resued elsewhere in the ...
 #For now, they are specific to the mapping rules.
+from types import SimpleNamespace
 
 def get_mapping_input(wildcards):
     # Filter for the specific combination
@@ -74,6 +75,21 @@ def get_runs_for_index(wildcards):
                   ref_name=wildcards.ref_name,
                   source=wildcards.source)
 
+def get_library_lb_map(wildcards):
+    """
+    "RG ID=LB;RG ID=LB;..." for every run of a modern sample, with LB set to
+    {sample_id}_{index}. The RG IDs are rebuilt with get_rg_string, so they are
+    exactly the ones written at mapping. Used by modern_dedup_libraries.
+    """
+    runs = samples_df[(samples_df.sample_id == wildcards.sample_id) &
+                      (samples_df.source == "modern")]
+    pairs = []
+    for run_id in runs["run_id"]:
+        rg = get_rg_string(SimpleNamespace(sample_id=wildcards.sample_id, run_id=run_id))
+        rg_id = rg.split("\\t")[1][len("ID:"):]
+        pairs.append(f"{rg_id}={wildcards.sample_id}_{run_id.split('_')[0]}")
+    return ";".join(pairs)
+
 def get_indices_for_sample(wildcards):
     """Gathers all deduplicated index files for a final sample merge."""
     # 1. Get all runs for this sample
@@ -110,6 +126,9 @@ def get_indices_for_sample(wildcards):
 # profiles/default/config.yaml, which pins rerun-triggers to mtime to avoid that.
 # The flip side of temp() is that once a remap IS triggered it starts from the
 # fastqs, since none of the intermediates are on disk to resume from.
+#
+# Modern samples then go merged.dedup.merged -> modern_dedup_libraries (temp,
+# duplicates between lanes of an index removed) -> modern_clip_overlap.
 
 rule map_modern:
     """Mapping for paired-end modern reads."""
@@ -285,8 +304,69 @@ rule merge_sample_indices:
         "samtools merge -@ {threads} {output.bam} {input}; samtools index {output.bam}"
 
 
+rule modern_dedup_libraries:
+    """
+    Removes duplicates between the lanes of each library of a modern sample.
+
+    The lanes of one index are one PCR library, so duplicates should be removed
+    across them; different indices are different libraries and are not
+    deduplicated against each other. deduplicate_modern runs on the merged
+    lanes of an index, but Picard marks duplicates only within one read-group
+    library (LB), and get_rg_string sets LB to the lane, so it removed
+    duplicates within each lane only (the Picard metrics in stats/merged_dedup/
+    list L1 and L2 as separate libraries).
+
+    Here the LB of every read group is set to {sample_id}_{index} with
+    samtools reheader (reads are not changed, only the header), then
+    MarkDuplicates is run on the merged BAM. Duplicates within each lane are
+    already gone, so this removes the ones between lanes of the same index.
+
+    Runs on the existing merged.dedup.merged BAM, so adding this step reruns
+    clipping and everything downstream of the modern BAMs without remapping.
+    Historical samples do not go through it. The modern merged.dedup.merged
+    BAM itself (and its stats/depth/qualimap) is still the within-lane one;
+    the clipped BAM, which every downstream stage uses, is built from this
+    rule's output.
+    """
+    input:
+        bam = "results/mapping/modern/{sample_id}.{ref_name}.merged.dedup.merged.bam",
+    output:
+        header = temp("results/mapping/modern/{sample_id}.{ref_name}.merged.dedup.merged.relabelLB.header.sam"),
+        relabelled = temp("results/mapping/modern/{sample_id}.{ref_name}.merged.dedup.merged.relabelLB.bam"),
+        bam = temp("results/mapping/modern/{sample_id}.{ref_name}.merged.dedup.merged.libdedup.bam"),
+        metrics = "results/mapping/modern/stats/merged_dedup_merged_libdedup/{sample_id}.{ref_name}.merged.dedup.merged.libdedup_picMetrics.txt",
+    params:
+        lb_map = get_library_lb_map,
+    conda: "../envs/dedup.yaml"
+    threads: config.get("threads_dedup", 4)
+    log: "logs/mapping/dedup_modern_libraries/{sample_id}.{ref_name}.libdedup.log"
+    benchmark: "benchmarks/mapping/dedup_modern_libraries/{sample_id}.{ref_name}.json"
+    shell:
+        """
+        samtools view -H {input.bam} | \
+            awk -F'\\t' -v OFS='\\t' -v map="{params.lb_map}" '
+                BEGIN {{
+                    n = split(map, pairs, ";")
+                    for (i = 1; i <= n; i++) {{ split(pairs[i], kv, "="); lb[kv[1]] = kv[2] }}
+                }}
+                /^@RG/ {{
+                    id = ""
+                    for (i = 2; i <= NF; i++) if ($i ~ /^ID:/) id = substr($i, 4)
+                    if (!(id in lb)) {{ print "read group ID " id " is not a run of this sample in the sample sheet" > "/dev/stderr"; exit 1 }}
+                    found = 0
+                    for (i = 2; i <= NF; i++) if ($i ~ /^LB:/) {{ $i = "LB:" lb[id]; found = 1 }}
+                    if (!found) $0 = $0 OFS "LB:" lb[id]
+                }}
+                {{ print }}' > {output.header} 2> {log}
+        samtools reheader {output.header} {input.bam} > {output.relabelled} 2>> {log}
+        picard MarkDuplicates -Xmx10000m \
+            I={output.relabelled} O={output.bam} M={output.metrics} \
+            REMOVE_DUPLICATES=true &>> {log}
+        """
+
+
 rule modern_clip_overlap:
-    input: "results/mapping/modern/{sample_id}.{ref_name}.merged.dedup.merged.bam"
+    input: "results/mapping/modern/{sample_id}.{ref_name}.merged.dedup.merged.libdedup.bam"
     output: 
         bam="results/mapping/modern/{sample_id}.{ref_name}.merged.dedup.merged.clipped.bam",
         bai="results/mapping/modern/{sample_id}.{ref_name}.merged.dedup.merged.clipped.bam.bai",

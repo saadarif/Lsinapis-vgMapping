@@ -35,8 +35,9 @@
 # bowtie2, but to the FASTA built here.
 #
 # Library (LB) in the read groups is the sample's index, so Picard marks
-# duplicates across the lanes of an index. (1.1_mapping.smk sets LB to the lane,
-# so duplicates between lanes of the same library are not marked there.)
+# duplicates across the lanes of an index (the lanes of an index are one PCR
+# library). 1.1_mapping.smk sets LB to the lane at mapping and corrects it
+# afterwards in modern_dedup_libraries.
 # ==============================================================================
 WOLB_PARAMS = config.get("params", {}).get("run_wolbachia_screen", {})
 WOLB_MTDNA_FA = WOLB_PARAMS.get("mtdna_fasta", "")

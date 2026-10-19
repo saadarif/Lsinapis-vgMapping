@@ -167,13 +167,41 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
   contain "mitochondri", every Wolbachia header "wolbachia" (case ignored),
   no nuclear header either word, contig names unique. The mtDNA contig name
   is `ENA|FR990201|FR990201.1` (pipes are fine for bwa/samtools/mosdepth).
-- 10a read group `LB` is `{sample}_{index}`, not the lane as in 1.1. Picard
-  marks duplicates only within a library, so 1.1's lane-as-LB keeps
-  duplicates between lanes of the same index: on the 3M-pair LsKaz10 test
-  slice, index-as-LB removed 207,446 reads and lane-as-LB 148,590. 1.1 not
-  changed. 10b has one read group per sample, so it dedups across indices
-  too (all modern samples have a single index, `01`, so it makes no
-  difference here).
+- Library design (user, 2026-10-19): the lanes of one index are the same
+  PCR library, so duplicates are removed after merging lanes; different
+  indices are different PCR libraries, so there is no dedup after merging
+  indices.
+- 10a read group `LB` is `{sample}_{index}`, matching that design. 1.1 sets
+  `LB` to the lane at mapping (`get_rg_string`), and Picard groups by `LB`,
+  not by file, so `deduplicate_modern` removed duplicates within each lane
+  only (the 1.1 Picard metrics list `L1`/`L2` as separate libraries for the
+  29 two-lane modern samples; the other 18 have one lane).
+- Fixed in 1.1 (2026-10-19, user's request) by `modern_dedup_libraries`,
+  between `merge_sample_indices` and `modern_clip_overlap`, modern only:
+  `samtools reheader` sets every read group's `LB` to `{sample}_{index}`
+  (RG IDs rebuilt from the sample sheet with `get_rg_string`; all 76 existing
+  RG IDs matched), then Picard MarkDuplicates again. Its output is temp();
+  the clipped BAM keeps its name, so no downstream path changed (the clipped
+  name does not show the extra step). `get_rg_string` and the mapping rules
+  were not changed, so the mapping params don't change.
+  - Because the new intermediate is temp(), a plain `snakemake` sees the
+    existing clipped BAMs as up to date ("Nothing to be done"). The rerun is
+    opt-in: `snakemake -R modern_dedup_libraries`, which dry-runs to 494 jobs:
+    47 × (dedup, clip, clipped stats/depth/qualimap, individual calls), M1-M4
+    subsampling, joint calls/merges, and everything downstream including
+    ngsLD (43 h, 716 GB). No historical per-sample job is scheduled.
+  - Real effect is tiny: on chromosome 47 (pairs with both mates on it),
+    LsKaz10 (HiSeq, 2 lanes, 1.7% within-lane duplication) lost 71 of
+    439,294 pairs (0.016%), M11 (NovaSeq, 2 lanes, 27-29% within-lane) 277
+    of 445,390 (0.06%). Control: MarkDuplicates on the same slice without
+    the relabel removed 0. The earlier 207,446 vs 148,590 comparison came
+    from a slice of the first reads of each lane and was not representative.
+    Whether to rerun is the user's call (not run as of 2026-10-19).
+- 10b maps all runs of a sample in one bowtie2 call (user's spec), so it has
+  one read group per sample and dedups across indices too, which goes
+  against the design above. No effect now (every modern sample has a single
+  index, `01`); for multi-index samples (e.g. historical) it would need one
+  bowtie2 call per index.
 - 34 rows of `modern_samples.tsv` have a space instead of a tab between
   `rgGroup_ID` and `platform` (e.g. `C80HPANXX_L1_01 hiseq2000`), so their
   RG ID contains the platform and PL is missing (`unknown` in the vg BAMs,
