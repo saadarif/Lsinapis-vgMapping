@@ -327,8 +327,12 @@ reported 2026-10-12) by switching to a local build of a recent `prune_graph`
 
 **Next planned stages** (plan as of 2026-10-19):
 
-1. **Run 10a and 10b on the real data** (both toggles FALSE until then) and
-   look at the coverage tables. Nothing for an infection call is built yet.
+1. **User's plan (2026-10-19):** rerun the pipeline with the 1.1 fix
+   (`snakemake -R modern_dedup_libraries`), then run 10a and 10b on the real
+   data (both toggles FALSE until then) and look at the coverage tables,
+   then come back for the stages below. Nothing for an infection call is
+   built yet. Check at the start of the next session whether these runs
+   finished.
 2. **Wolbachia/mtDNA consensus + trees**, its own workflow, for modern AND
    historical samples (historical mapping for the screen is not built yet).
    Earlier proposal (2026-10-12, not confirmed): infected / uninfected sets
@@ -350,6 +354,31 @@ reported 2026-10-12) by switching to a local build of a recent `prune_graph`
    new workflow file. Nothing designed or checked yet: input genotype set,
    per-population grouping, and whether GONE2 has a bioconda/conda-forge
    package (check before choosing `conda:` vs `container:`) are all open.
+6. **Mutational load per sample, modern AND historical** (user, 2026-10-19),
+   from existing GERP scores and variant-effect prediction (snpEff). Own
+   workflow file. Nothing designed yet. What already exists (seen, not
+   checked in detail):
+   - GERP: five L. sinapis runs of GenErode with different parameter sets,
+     `/mnt/sda/saad/WoodWhite/GenErode_gerp_test/{87GenomesOrigParams,
+     112Genomes_DefaultParams, 112Genomes_DussexetalParams,
+     112Genomes_vanDerValketal2021Params, DussexEtal_parameter}_results/gerp/
+     Leptidea_sinapis-GCA_905404315.1-softmasked.autos.ancestral.rates.gz`.
+     Which set to use is the user's call.
+   - snpEff: a built database at `ref_genome/snpEff/data/
+     Leptidea_sinapis-GCA_905404315.1-softmasked/` (`snpEffectPredictor.bin`,
+     `genes.gtf`, its own `snpEff.config`); annotation source
+     `ref_genome/Leptidea_sinapis-GCA_905404315.1-2021_11-genes.gtf`. The
+     snpEff version it was built with is unknown, and the binary database
+     must match the snpEff version in the env.
+   Open: which genotype set (notrans vs rescaled, indCall vs jointCall,
+   fmiss; notrans drops transitions, which also drops many missense and
+   loss-of-function sites, so the damage trade-off for historical samples
+   matters here); which load measures (e.g. GERP-weighted derived alleles,
+   counts of homozygous / heterozygous derived deleterious alleles per
+   snpEff impact class); how alleles are polarised (the GERP `.rates` file
+   is "ancestral"); a GERP score cutoff; how to correct for differences in
+   coverage/missingness between modern and historical samples. GenErode's
+   own relative-load calculation is a likely starting point.
 
 See `HANDOFF_2026-09-28.md` for the detailed session log of stages 5–6a
 (what was tested, how, and why each design choice was made).
