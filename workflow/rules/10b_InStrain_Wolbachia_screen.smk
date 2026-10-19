@@ -17,7 +17,7 @@
 #
 # Independent of 10a_Wolbachia_screen.smk: nothing defined there is used here
 # (this file builds its own copy of the competitive FASTA, under
-# results/bowtie2_mapping/), so either file can be run or included alone.
+# results/wolbachia_screening/bowtie2_mapping/), so either file can be run or included alone.
 #
 # Samples: every modern sample, paired-end reads only. Historical samples are
 # not included yet; every path carries {source} so they can be added.
@@ -34,7 +34,7 @@
 IS_PARAMS = config.get("params", {}).get("run_instrain_wolbachia", {})
 IS_MTDNA_FA = config.get("mtdna_fasta", "")
 IS_WOLBACHIA_FA = config.get("wolbachia_fasta", "")
-IS_REF_DIR = "results/bowtie2_mapping/reference"
+IS_REF_DIR = "results/wolbachia_screening/bowtie2_mapping/reference"
 # Default mapping FASTA, built by is_concat_reference
 IS_CONCAT_NAME = f"{REF_NAME}_mtWolb"
 IS_CONCAT_FA = f"{IS_REF_DIR}/{IS_CONCAT_NAME}.fa"
@@ -86,14 +86,14 @@ if _is_on:
 IS_BT2_INDEX = f"{IS_REF_DIR}/{IS_MAP_NAME}"
 IS_BT2_INDEX_FILES = [f"{IS_BT2_INDEX}{ext}" for ext in
                       (".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2", ".rev.1.bt2", ".rev.2.bt2")]
-IS_BAM_STEM = f"results/bowtie2_mapping/{{source}}/{{sample_id}}.{IS_MAP_NAME}.bt2"
-IS_GENES = IS_GENES_FNA or (f"results/instrain_wolbachia/reference/"
+IS_BAM_STEM = f"results/wolbachia_screening/bowtie2_mapping/{{source}}/{{sample_id}}.{IS_MAP_NAME}.bt2"
+IS_GENES = IS_GENES_FNA or (f"results/wolbachia_screening/instrain_wolbachia/reference/"
                             f"{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.genes.fna")
 IS_TAG = f"{IS_MAP_NAME}.bt2.dedup.{IS_PROFILE_NAME}.mq{IS_MIN_MAPQ}"
 
 
 def is_outdir(source, sample_id):
-    return f"results/instrain_wolbachia/{source}/{sample_id}.{IS_TAG}.IS"
+    return f"results/wolbachia_screening/instrain_wolbachia/{source}/{sample_id}.{IS_TAG}.IS"
 
 
 def is_genome_info(source, sample_id):
@@ -102,7 +102,7 @@ def is_genome_info(source, sample_id):
     return f"{outdir}/output/{os.path.basename(outdir)}_genome_info.tsv"
 
 
-IS_SUMMARY = f"results/instrain_wolbachia/instrain.{IS_TAG}.genome_info.tsv"
+IS_SUMMARY = f"results/wolbachia_screening/instrain_wolbachia/instrain.{IS_TAG}.genome_info.tsv"
 
 # Requested from the Snakefile target list (section 15)
 IS_TARGETS = [IS_SUMMARY] if _is_on else []
@@ -151,7 +151,7 @@ rule is_concat_reference:
         bed_mitochondrion = f"{IS_REF_DIR}/{IS_CONCAT_NAME}.mitochondrion.bed",
         bed_wolbachia = f"{IS_REF_DIR}/{IS_CONCAT_NAME}.wolbachia.bed",
     log:
-        f"logs/instrain_wolbachia/concat_reference/{IS_CONCAT_NAME}.log",
+        f"logs/wolbachia_screening/instrain_wolbachia/concat_reference/{IS_CONCAT_NAME}.log",
     conda:
         "../envs/python.yaml"
     script:
@@ -168,9 +168,9 @@ rule is_bowtie2_index:
         prefix = IS_BT2_INDEX,
     threads: IS_THREADS_BT2
     log:
-        f"logs/bowtie2_mapping/index/{IS_MAP_NAME}.log",
+        f"logs/wolbachia_screening/bowtie2_mapping/index/{IS_MAP_NAME}.log",
     benchmark:
-        f"benchmarks/bowtie2_mapping/index/{IS_MAP_NAME}.json"
+        f"benchmarks/wolbachia_screening/bowtie2_mapping/index/{IS_MAP_NAME}.json"
     conda:
         "../envs/bowtie2.yaml"
     shell:
@@ -188,7 +188,7 @@ rule is_bowtie2_map:
         idx = IS_BT2_INDEX_FILES,
     output:
         bam = temp(IS_BAM_STEM + ".bam"),
-        summary = f"results/bowtie2_mapping/{{source}}/stats/{{sample_id}}.{IS_MAP_NAME}.bowtie2_summary.txt",
+        summary = f"results/wolbachia_screening/bowtie2_mapping/{{source}}/stats/{{sample_id}}.{IS_MAP_NAME}.bowtie2_summary.txt",
     wildcard_constraints:
         source = IS_SOURCES,
     params:
@@ -197,9 +197,9 @@ rule is_bowtie2_map:
         extra = IS_BT2_EXTRA,
     threads: IS_THREADS_BT2
     log:
-        f"logs/bowtie2_mapping/bowtie2/{{source}}/{{sample_id}}.{IS_MAP_NAME}.log",
+        f"logs/wolbachia_screening/bowtie2_mapping/bowtie2/{{source}}/{{sample_id}}.{IS_MAP_NAME}.log",
     benchmark:
-        f"benchmarks/bowtie2_mapping/bowtie2/{{source}}/{{sample_id}}.{IS_MAP_NAME}.json"
+        f"benchmarks/wolbachia_screening/bowtie2_mapping/bowtie2/{{source}}/{{sample_id}}.{IS_MAP_NAME}.json"
     conda:
         "../envs/bowtie2.yaml"
     shell:
@@ -219,14 +219,14 @@ rule is_dedup:
     output:
         bam = IS_BAM_STEM + ".dedup.bam",
         bai = IS_BAM_STEM + ".dedup.bam.bai",
-        metrics = f"results/bowtie2_mapping/{{source}}/stats/{{sample_id}}.{IS_MAP_NAME}.bt2.picMetrics.txt",
+        metrics = f"results/wolbachia_screening/bowtie2_mapping/{{source}}/stats/{{sample_id}}.{IS_MAP_NAME}.bt2.picMetrics.txt",
     wildcard_constraints:
         source = IS_SOURCES,
     threads: config.get("threads_dedup", 4)
     log:
-        f"logs/bowtie2_mapping/dedup/{{source}}/{{sample_id}}.{IS_MAP_NAME}.log",
+        f"logs/wolbachia_screening/bowtie2_mapping/dedup/{{source}}/{{sample_id}}.{IS_MAP_NAME}.log",
     benchmark:
-        f"benchmarks/bowtie2_mapping/dedup/{{source}}/{{sample_id}}.{IS_MAP_NAME}.json"
+        f"benchmarks/wolbachia_screening/bowtie2_mapping/dedup/{{source}}/{{sample_id}}.{IS_MAP_NAME}.json"
     conda:
         "../envs/dedup.yaml"
     shell:
@@ -243,13 +243,13 @@ rule is_prodigal:
     input:
         fa = IS_PROFILE_FA,
     output:
-        fna = f"results/instrain_wolbachia/reference/{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.genes.fna",
-        faa = f"results/instrain_wolbachia/reference/{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.genes.faa",
-        gff = f"results/instrain_wolbachia/reference/{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.genes.gff",
+        fna = f"results/wolbachia_screening/instrain_wolbachia/reference/{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.genes.fna",
+        faa = f"results/wolbachia_screening/instrain_wolbachia/reference/{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.genes.faa",
+        gff = f"results/wolbachia_screening/instrain_wolbachia/reference/{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.genes.gff",
     params:
         mode = IS_PRODIGAL_MODE,
     log:
-        f"logs/instrain_wolbachia/prodigal/{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.log",
+        f"logs/wolbachia_screening/instrain_wolbachia/prodigal/{IS_PROFILE_NAME}.prodigal_{IS_PRODIGAL_MODE}.log",
     conda:
         "../envs/prodigal.yaml"
     shell:
@@ -281,9 +281,9 @@ rule is_profile:
         extra = IS_EXTRA,
     threads: IS_THREADS
     log:
-        f"logs/instrain_wolbachia/profile/{{source}}/{{sample_id}}.{IS_TAG}.log",
+        f"logs/wolbachia_screening/instrain_wolbachia/profile/{{source}}/{{sample_id}}.{IS_TAG}.log",
     benchmark:
-        f"benchmarks/instrain_wolbachia/profile/{{source}}/{{sample_id}}.{IS_TAG}.json"
+        f"benchmarks/wolbachia_screening/instrain_wolbachia/profile/{{source}}/{{sample_id}}.{IS_TAG}.json"
     conda:
         "../envs/instrain.yaml"
     shell:
@@ -303,7 +303,7 @@ rule is_genome_info_summary:
     params:
         units = IS_UNITS,
     log:
-        f"logs/instrain_wolbachia/summary/instrain.{IS_TAG}.log",
+        f"logs/wolbachia_screening/instrain_wolbachia/summary/instrain.{IS_TAG}.log",
     conda:
         "../envs/python.yaml"
     script:

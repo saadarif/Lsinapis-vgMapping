@@ -89,6 +89,14 @@ snakemake              # actual run
   is needed (see `workflow/envs/python.yaml`), for reproducibility
   consistency with every other rule — but avoid adding a dependency (e.g.
   pandas) an existing script doesn't need.
+- **One top-level folder per workflow** (user, 2026-10-19: use for every
+  new workflow). A workflow's results, logs and benchmarks all go under one
+  folder named for the workflow, with the same subfolders in each:
+  `results/<workflow>/<step>/...`, `logs/<workflow>/<step>/...`,
+  `benchmarks/<workflow>/<step>/...`. 10a/10b are the model
+  (`wolbachia_screening`, with `bwa_mapping/`, `wolbachia_screen/`,
+  `bowtie2_mapping/`, `instrain_wolbachia/` inside). Older stages were not
+  changed to fit it.
 
 ## Current status (update this section as stages land)
 
@@ -134,22 +142,24 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
 9. `10a_Wolbachia_screen.smk` (`run_wolbachia_screen`, FALSE in
    `config.yaml` until the full run is started) — the nuclear reference +
    mtDNA + Wolbachia FASTAs (top-level `mtdna_fasta` / `wolbachia_fasta`) concatenated into
-   `results/bwa_mapping/reference/{REF_NAME}_mtWolb.fa` (+ `.stb` and one
-   BED per genome), then modern samples (paired-end) mapped with
-   bwa mem → merge lanes per index → Picard MarkDuplicates → merge indices →
-   clipOverlap (`results/bwa_mapping/{source}/`), split by genome at
-   MAPQ ≥ `mapq` (`results/wolbachia_screen/bams/`), mosdepth per genome,
-   and a long + wide table of reads / mean depth / breadth / depth ratios
-   (`results/wolbachia_screen/wolbachia_screen.*.coverage_{long,wide}.tsv`).
+   `results/wolbachia_screening/bwa_mapping/reference/{REF_NAME}_mtWolb.fa`
+   (+ `.stb` and one BED per genome), then modern samples (paired-end)
+   mapped with bwa mem → merge lanes per index → Picard MarkDuplicates →
+   merge indices → clipOverlap
+   (`results/wolbachia_screening/bwa_mapping/{source}/`), split by genome at
+   MAPQ ≥ `mapq` (`results/wolbachia_screening/wolbachia_screen/bams/`),
+   mosdepth per genome, and a long + wide table of reads / mean depth /
+   breadth / depth ratios
+   (`results/wolbachia_screening/wolbachia_screen/wolbachia_screen.*.coverage_{long,wide}.tsv`).
    No infection call. Tested end-to-end on a slice (see session 2026-10-19).
 10. `10b_InStrain_Wolbachia_screen.smk` (`run_instrain_wolbachia`, FALSE) —
    the user's spec: per sample, all paired-end runs (every lane and index)
    in one bowtie2 call to nuclear + mtDNA + Wolbachia (its own copy,
-   `results/bowtie2_mapping/reference/{REF_NAME}_mtWolb.fa`),
+   `results/wolbachia_screening/bowtie2_mapping/reference/{REF_NAME}_mtWolb.fa`),
    duplicates removed (Picard), then `inStrain profile <bam> <wolbachia.fa>
    -g <prodigal genes.fna> --min_mapq 2` against the Wolbachia FASTA only;
    all samples' `genome_info` tables in
-   `results/instrain_wolbachia/instrain.*.genome_info.tsv`. Mapping FASTA,
+   `results/wolbachia_screening/instrain_wolbachia/instrain.*.genome_info.tsv`. Mapping FASTA,
    profile FASTA, `.stb` and genes file can be swapped in
    `params.run_instrain_wolbachia` (e.g. other microbial genomes). Tested
    end-to-end on the same slice (2 modern samples).
@@ -161,6 +171,11 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
      (`concat_screen_reference.py`), so with both on it is built twice.
      Checked with scratch Snakefiles including 10a only, 10b only (also run
      end-to-end) and both.
+   - All 10a/10b results are under `results/wolbachia_screening/`, and
+     their logs and benchmarks under `logs/wolbachia_screening/` and
+     `benchmarks/wolbachia_screening/` (user, 2026-10-19), each with the
+     same subfolders as before (`bwa_mapping`, `wolbachia_screen`,
+     `bowtie2_mapping`, `instrain_wolbachia`).
 
 **Session 2026-10-19 (stages 10a, 10b), things not obvious from the code:**
 - The user wants three separate workflows: the bwa/mosdepth screen (10a),

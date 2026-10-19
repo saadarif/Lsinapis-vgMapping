@@ -37,7 +37,7 @@
 # Library (LB) in the read groups is the sample's index, so Picard marks
 # duplicates across the lanes of an index (the lanes of an index are one PCR
 # library). 1.1_mapping.smk sets LB to the lane at mapping and corrects it
-# afterwards in modern_dedup_libraries.
+# afterwards in modern_dedup_libraries. That latter error was identified in retrospect.
 # ==============================================================================
 WOLB_PARAMS = config.get("params", {}).get("run_wolbachia_screen", {})
 WOLB_MTDNA_FA = config.get("mtdna_fasta", "")
@@ -55,7 +55,7 @@ WOLB_TAG = f"q{WOLB_MAPQ}"
 WOLB_COV_TAG = f"{WOLB_TAG}.bt{'-'.join(str(t) for t in WOLB_THRESHOLDS)}"
 
 # Competitive references for the bwa mapping rules: name -> FASTA
-BWA_REF_DIR = "results/bwa_mapping/reference"
+BWA_REF_DIR = "results/wolbachia_screening/bwa_mapping/reference"
 BWA_REFS = {WOLB_REF: f"{BWA_REF_DIR}/{WOLB_REF}.fa"}
 
 WOLB_SOURCES = "modern"
@@ -80,16 +80,16 @@ WOLB_UNITS = list(
 
 
 def wolb_genome_bam(source, sample_id, genome):
-    return (f"results/wolbachia_screen/bams/{source}/{sample_id}.{WOLB_REF}"
+    return (f"results/wolbachia_screening/wolbachia_screen/bams/{source}/{sample_id}.{WOLB_REF}"
             f".merged.dedup.merged.clipped.{WOLB_TAG}.{genome}.bam")
 
 
 def wolb_mosdepth_prefix(source, sample_id, genome):
-    return (f"results/wolbachia_screen/mosdepth/{source}/{sample_id}.{WOLB_REF}"
+    return (f"results/wolbachia_screening/wolbachia_screen/mosdepth/{source}/{sample_id}.{WOLB_REF}"
             f".merged.dedup.merged.clipped.{WOLB_COV_TAG}.{genome}")
 
 
-WOLB_SUMMARY_PREFIX = f"results/wolbachia_screen/wolbachia_screen.{WOLB_REF}.{WOLB_COV_TAG}"
+WOLB_SUMMARY_PREFIX = f"results/wolbachia_screening/wolbachia_screen/wolbachia_screen.{WOLB_REF}.{WOLB_COV_TAG}"
 
 # Requested from the Snakefile target list (section 14)
 WOLB_SCREEN_TARGETS = []
@@ -151,7 +151,7 @@ def bwa_runs_for_index(wildcards):
     subset = WOLB_SAMPLES_DF[(WOLB_SAMPLES_DF.sample_id == wildcards.sample_id) &
                             (WOLB_SAMPLES_DF.source == wildcards.source)]
     runs = [r for r in subset["run_id"] if r.split("_")[0] == wildcards.index]
-    return expand("results/bwa_mapping/{source}/{sample_id}.{run_id}.{cref}.bam",
+    return expand("results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{run_id}.{cref}.bam",
                   source=wildcards.source, sample_id=wildcards.sample_id,
                   run_id=runs, cref=wildcards.cref)
 
@@ -161,7 +161,7 @@ def bwa_indices_for_sample(wildcards):
     subset = WOLB_SAMPLES_DF[(WOLB_SAMPLES_DF.sample_id == wildcards.sample_id) &
                             (WOLB_SAMPLES_DF.source == wildcards.source)]
     indices = sorted({r.split("_")[0] for r in subset["run_id"]})
-    return expand("results/bwa_mapping/{source}/{sample_id}.{index}.{cref}.merged.dedup.bam",
+    return expand("results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{index}.{cref}.merged.dedup.bam",
                   source=wildcards.source, sample_id=wildcards.sample_id,
                   index=indices, cref=wildcards.cref)
 
@@ -186,7 +186,7 @@ rule wolb_concat_reference:
         bed_mitochondrion = f"{BWA_REF_DIR}/{WOLB_REF}.mitochondrion.bed",
         bed_wolbachia = f"{BWA_REF_DIR}/{WOLB_REF}.wolbachia.bed",
     log:
-        f"logs/wolbachia_screen/concat_reference/{WOLB_REF}.log",
+        f"logs/wolbachia_screening/wolbachia_screen/concat_reference/{WOLB_REF}.log",
     conda:
         "../envs/python.yaml"
     script:
@@ -202,9 +202,9 @@ rule bwa_index_reference:
     wildcard_constraints:
         cref = "[^./]+",
     log:
-        "logs/bwa_mapping/index/{cref}.log",
+        "logs/wolbachia_screening/bwa_mapping/index/{cref}.log",
     benchmark:
-        "benchmarks/bwa_mapping/index/{cref}.json"
+        "benchmarks/wolbachia_screening/bwa_mapping/index/{cref}.json"
     conda:
         "../envs/bwa.yaml"
     shell:
@@ -226,8 +226,8 @@ rule bwa_map:
         ref = bwa_ref_fasta,
         idx = lambda w: [bwa_ref_fasta(w) + ext for ext in (".amb", ".ann", ".bwt", ".pac", ".sa")],
     output:
-        bam = temp("results/bwa_mapping/{source}/{sample_id}.{run_id}.{cref}.bam"),
-        flagstat = "results/bwa_mapping/{source}/stats/bwa/{sample_id}.{run_id}.{cref}.flagstat.txt",
+        bam = temp("results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{run_id}.{cref}.bam"),
+        flagstat = "results/wolbachia_screening/bwa_mapping/{source}/stats/bwa/{sample_id}.{run_id}.{cref}.flagstat.txt",
     wildcard_constraints:
         source = WOLB_SOURCES,
         cref = "[^./]+",
@@ -235,9 +235,9 @@ rule bwa_map:
         rg = bwa_rg_string,
     threads: WOLB_THREADS_BWA
     log:
-        "logs/bwa_mapping/bwa_mem/{source}/{sample_id}.{run_id}.{cref}.log",
+        "logs/wolbachia_screening/bwa_mapping/bwa_mem/{source}/{sample_id}.{run_id}.{cref}.log",
     benchmark:
-        "benchmarks/bwa_mapping/bwa_mem/{source}/{sample_id}.{run_id}.{cref}.json"
+        "benchmarks/wolbachia_screening/bwa_mapping/bwa_mem/{source}/{sample_id}.{run_id}.{cref}.json"
     conda:
         "../envs/bwa.yaml"
     shell:
@@ -253,7 +253,7 @@ rule bwa_merge_index_lanes:
     input:
         bwa_runs_for_index,
     output:
-        temp("results/bwa_mapping/{source}/{sample_id}.{index}.{cref}.merged.bam"),
+        temp("results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{index}.{cref}.merged.bam"),
     wildcard_constraints:
         source = WOLB_SOURCES,
         index = "[^.]+",
@@ -268,19 +268,19 @@ rule bwa_merge_index_lanes:
 rule bwa_dedup:
     """Picard MarkDuplicates, duplicates removed (as deduplicate_modern in 1.1)."""
     input:
-        bam = "results/bwa_mapping/{source}/{sample_id}.{index}.{cref}.merged.bam",
+        bam = "results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{index}.{cref}.merged.bam",
     output:
-        bam = temp("results/bwa_mapping/{source}/{sample_id}.{index}.{cref}.merged.dedup.bam"),
-        metrics = "results/bwa_mapping/{source}/stats/merged_dedup/{sample_id}.{index}.{cref}.merged_picMetrics.txt",
+        bam = temp("results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{index}.{cref}.merged.dedup.bam"),
+        metrics = "results/wolbachia_screening/bwa_mapping/{source}/stats/merged_dedup/{sample_id}.{index}.{cref}.merged_picMetrics.txt",
     wildcard_constraints:
         source = WOLB_SOURCES,
         index = "[^.]+",
         cref = "[^./]+",
     threads: config.get("threads_dedup", 4)
     log:
-        "logs/bwa_mapping/dedup/{source}/{sample_id}.{index}.{cref}.dedup.log",
+        "logs/wolbachia_screening/bwa_mapping/dedup/{source}/{sample_id}.{index}.{cref}.dedup.log",
     benchmark:
-        "benchmarks/bwa_mapping/dedup/{source}/{sample_id}.{index}.{cref}.json"
+        "benchmarks/wolbachia_screening/bwa_mapping/dedup/{source}/{sample_id}.{index}.{cref}.json"
     conda:
         "../envs/dedup.yaml"
     shell:
@@ -296,7 +296,7 @@ rule bwa_merge_sample_indices:
     input:
         bwa_indices_for_sample,
     output:
-        bam = temp("results/bwa_mapping/{source}/{sample_id}.{cref}.merged.dedup.merged.bam"),
+        bam = temp("results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{cref}.merged.dedup.merged.bam"),
     wildcard_constraints:
         source = WOLB_SOURCES,
         cref = "[^./]+",
@@ -310,16 +310,16 @@ rule bwa_merge_sample_indices:
 rule bwa_clip_overlap:
     """bam clipOverlap, so overlapping mates aren't counted twice (as modern_clip_overlap in 1.1)."""
     input:
-        "results/bwa_mapping/{source}/{sample_id}.{cref}.merged.dedup.merged.bam",
+        "results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{cref}.merged.dedup.merged.bam",
     output:
-        bam = "results/bwa_mapping/{source}/{sample_id}.{cref}.merged.dedup.merged.clipped.bam",
-        bai = "results/bwa_mapping/{source}/{sample_id}.{cref}.merged.dedup.merged.clipped.bam.bai",
-        log = "results/bwa_mapping/{source}/stats/merged_dedup_merged_clipped/{sample_id}.{cref}.merged.dedup.merged.clipped.log",
+        bam = "results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{cref}.merged.dedup.merged.clipped.bam",
+        bai = "results/wolbachia_screening/bwa_mapping/{source}/{sample_id}.{cref}.merged.dedup.merged.clipped.bam.bai",
+        log = "results/wolbachia_screening/bwa_mapping/{source}/stats/merged_dedup_merged_clipped/{sample_id}.{cref}.merged.dedup.merged.clipped.log",
     wildcard_constraints:
         source = WOLB_SOURCES,
         cref = "[^./]+",
     benchmark:
-        "benchmarks/bwa_mapping/clip_overlap/{source}/{sample_id}.{cref}.json"
+        "benchmarks/wolbachia_screening/bwa_mapping/clip_overlap/{source}/{sample_id}.{cref}.json"
     conda:
         "../envs/bamutil.yaml"
     shell:
@@ -339,8 +339,8 @@ rule wolb_split_genome:
     The nreads file is the number of primary mapped reads in the output BAM.
     """
     input:
-        bam = f"results/bwa_mapping/{{source}}/{{sample_id}}.{WOLB_REF}.merged.dedup.merged.clipped.bam",
-        bai = f"results/bwa_mapping/{{source}}/{{sample_id}}.{WOLB_REF}.merged.dedup.merged.clipped.bam.bai",
+        bam = f"results/wolbachia_screening/bwa_mapping/{{source}}/{{sample_id}}.{WOLB_REF}.merged.dedup.merged.clipped.bam",
+        bai = f"results/wolbachia_screening/bwa_mapping/{{source}}/{{sample_id}}.{WOLB_REF}.merged.dedup.merged.clipped.bam.bai",
         bed = f"{BWA_REF_DIR}/{WOLB_REF}.{{genome}}.bed",
     output:
         bam = wolb_genome_bam("{source}", "{sample_id}", "{genome}"),
@@ -353,7 +353,7 @@ rule wolb_split_genome:
         mapq = WOLB_MAPQ,
     threads: 4
     log:
-        f"logs/wolbachia_screen/split_genome/{{source}}/{{sample_id}}.{WOLB_REF}.{WOLB_TAG}.{{genome}}.log",
+        f"logs/wolbachia_screening/wolbachia_screen/split_genome/{{source}}/{{sample_id}}.{WOLB_REF}.{WOLB_TAG}.{{genome}}.log",
     conda:
         "../envs/bwa.yaml"
     shell:
@@ -387,9 +387,9 @@ rule wolb_mosdepth:
         thresholds = ",".join(str(t) for t in WOLB_THRESHOLDS),
     threads: WOLB_THREADS_MOSDEPTH
     log:
-        f"logs/wolbachia_screen/mosdepth/{{source}}/{{sample_id}}.{WOLB_REF}.{WOLB_COV_TAG}.{{genome}}.log",
+        f"logs/wolbachia_screening/wolbachia_screen/mosdepth/{{source}}/{{sample_id}}.{WOLB_REF}.{WOLB_COV_TAG}.{{genome}}.log",
     benchmark:
-        f"benchmarks/wolbachia_screen/mosdepth/{{source}}/{{sample_id}}.{WOLB_REF}.{WOLB_COV_TAG}.{{genome}}.json"
+        f"benchmarks/wolbachia_screening/wolbachia_screen/mosdepth/{{source}}/{{sample_id}}.{WOLB_REF}.{WOLB_COV_TAG}.{{genome}}.json"
     conda:
         "../envs/mosdepth.yaml"
     shell:
@@ -416,7 +416,7 @@ rule wolb_coverage_summary:
         thresholds = WOLB_THRESHOLDS,
         mapq = WOLB_MAPQ,
     log:
-        f"logs/wolbachia_screen/summary/wolbachia_screen.{WOLB_REF}.{WOLB_COV_TAG}.log",
+        f"logs/wolbachia_screening/wolbachia_screen/summary/wolbachia_screen.{WOLB_REF}.{WOLB_COV_TAG}.log",
     conda:
         "../envs/python.yaml"
     script:
