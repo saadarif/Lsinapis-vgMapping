@@ -36,6 +36,11 @@ properties:
     type: string
     description: "Path to the TSV/CSV metadata for historical samples."
 
+  blanks_csv:
+    type: string
+    default: ""
+    description: "TSV/CSV of blanks (same columns as modern_csv, fq2 optional). Only used by run_wolbachia_screen."
+
   # --- Analysis Toggles ---
   run_multiqc:
     type: boolean
@@ -72,6 +77,14 @@ properties:
   run_roh:
     type: boolean
     description: "Runs of homozygosity with bcftools roh on the biallelic BCFs of the genotyping workflows."
+
+  run_wolbachia_screen:
+    type: boolean
+    description: "Modern samples + blanks mapped with bwa mem to nuclear + mtDNA + Wolbachia; depth and breadth per genome with mosdepth."
+
+  run_instrain_wolbachia:
+    type: boolean
+    description: "Same samples mapped with bowtie2 (all runs per sample at once), duplicates removed, inStrain profile against the Wolbachia FASTA."
 
   # --- Subsampling ---
   subsample_samples:
@@ -304,6 +317,91 @@ properties:
             type: integer
             minimum: 1
             default: 4
+
+      run_wolbachia_screen:
+        type: object
+        properties:
+          mtdna_fasta:
+            type: string
+            description: "mtDNA FASTA; every header must contain 'mitochondri' (case ignored)."
+          wolbachia_fasta:
+            type: string
+            description: "Wolbachia FASTA; every header must contain 'wolbachia' (case ignored)."
+          mapq:
+            type: integer
+            minimum: 0
+            default: 30
+            description: "Minimum MAPQ of reads kept in the per-genome BAMs."
+          breadth_thresholds:
+            type: array
+            items:
+              type: integer
+              minimum: 1
+            minItems: 1
+            default: [1, 5, 10]
+            description: "Depths at which breadth of coverage is reported (mosdepth --thresholds)."
+          threads_bwa:
+            type: integer
+            minimum: 1
+            default: 16
+          threads_mosdepth:
+            type: integer
+            minimum: 1
+            default: 4
+        required:
+          - mtdna_fasta
+          - wolbachia_fasta
+
+      run_instrain_wolbachia:
+        type: object
+        properties:
+          mapping_fasta:
+            type: string
+            default: ""
+            description: "bowtie2 reference; empty = the Wolbachia screen's nuclear + mtDNA + Wolbachia FASTA."
+          mapping_name:
+            type: string
+            default: ""
+            pattern: "^[^./]*$"
+            description: "Name of mapping_fasta in file names; required when mapping_fasta is set."
+          profile_fasta:
+            type: string
+            default: ""
+            description: "FASTA inStrain profiles; empty = run_wolbachia_screen: wolbachia_fasta."
+          profile_name:
+            type: string
+            default: "wolbachia"
+            pattern: "^[^./]+$"
+          stb:
+            type: string
+            default: ""
+            description: "Optional inStrain -s contig -> genome file."
+          genes_fna:
+            type: string
+            default: ""
+            description: "Prodigal genes .fna for inStrain -g; empty = predicted with prodigal."
+          prodigal_mode:
+            type: string
+            enum: ["single", "meta"]
+            default: "single"
+          min_mapq:
+            type: integer
+            default: 2
+            description: "inStrain --min_mapq (a pair is used if either read has MAPQ > this)."
+          threads_bowtie2:
+            type: integer
+            minimum: 1
+            default: 16
+          threads:
+            type: integer
+            minimum: 1
+            default: 8
+          bowtie2_extra:
+            type: string
+            default: ""
+          extra:
+            type: string
+            default: ""
 
   threads_mapping:
     type: integer

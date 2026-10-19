@@ -258,6 +258,19 @@ def get_final_targets(wildcards):
     if config.get("run_roh", False):
         targets.extend(ROH_TARGETS)
 
+    # 14. Add Wolbachia screen targets (modern samples + blanks mapped with bwa mem
+    #     to nuclear + mtDNA + Wolbachia, split by genome at a MAPQ cutoff, then
+    #     mosdepth depth/breadth summary). Assembled in the rule file.
+    if config.get("run_wolbachia_screen", False):
+        targets.extend(WOLB_SCREEN_TARGETS)
+
+    # 15. Add inStrain Wolbachia screen targets (bowtie2 of all runs per sample to
+    #     the screen's competitive FASTA, duplicates removed, inStrain profile
+    #     against the Wolbachia FASTA). Assembled in the rule file. Does not need
+    #     run_wolbachia_screen: the reference it maps to is built either way.
+    if config.get("run_instrain_wolbachia", False):
+        targets.extend(IS_TARGETS)
+
     return targets
 
 #ADD rules here
@@ -271,6 +284,8 @@ include: "workflow/rules/5_LD_pruning.smk" #ngsLD + prune_graph: unlinked-SNP be
 include: "workflow/rules/6a_Strucure_angsdPCA.smk" #PCA with PCAngsd on the LD-pruned beagle file
 include: "workflow/rules/6b_Structure_NGadmix.smk" #NGSadmix (K = 1..max_k, replicated to convergence) + evalAdmix on the same beagle file as the PCA
 include: "workflow/rules/7_FroH_bcftools.smk" #runs of homozygosity with bcftools roh on the biallelic BCFs from the genotyping workflows
+include: "workflow/rules/10a_Wolbachia_screen.smk" #bwa mem competitive mapping to nuclear + mtDNA + Wolbachia, depth/breadth per genome with mosdepth
+include: "workflow/rules/10b_InStrain_Wolbachia_screen.smk" #bowtie2 to the same reference, inStrain profile against the Wolbachia FASTA
 
 rule all:
     input: get_final_targets

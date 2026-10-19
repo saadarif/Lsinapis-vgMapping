@@ -1,0 +1,10 @@
+# defaults is needed: with conda-forge + bioconda only, the solve did not finish
+# (stopped after ~40 min); with defaults added it solves in a few minutes
+# (python 3.8, scipy from defaults).
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  - instrain =1.10.0

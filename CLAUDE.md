@@ -35,7 +35,8 @@ snakemake              # actual run
   `2b_call_genotypes_rescaled`, `3_diversity_stats`, `4_relatedness`,
   `5_LD_pruning`, `6a_Strucure_angsdPCA` (typo in filename is intentional/
   established, don't "fix" it without renaming deliberately),
-  `6b_Structure_NGadmix`, `7_FroH_bcftools`. All `include:`d
+  `6b_Structure_NGadmix`, `7_FroH_bcftools`, `10a_Wolbachia_screen`,
+  `10b_InStrain_Wolbachia_screen`. All `include:`d
   into one global namespace — later files freely reuse Python-level constants
   and functions from earlier ones (e.g. `REF_NAME`, `samples_df`,
   `KEEP_SAMPLES_REL`, `REL_TAG`, `PRUNE_TAG`).
@@ -130,6 +131,79 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    low (about 11%) because with `--ignore-homref` it counts one sample's
    non-hom-ref sites; that is expected, not a filter problem.
 
+9. `10a_Wolbachia_screen.smk` (`run_wolbachia_screen`, FALSE in
+   `config.yaml` until the full run is started) — the nuclear reference +
+   mtDNA + Wolbachia FASTAs (`params.run_wolbachia_screen`) concatenated into
+   `results/bwa_mapping/reference/{REF_NAME}_mtWolb.fa` (+ `.stb` and one
+   BED per genome), then modern samples + blanks (`blanks_csv`) mapped with
+   bwa mem → merge lanes per index → Picard MarkDuplicates → merge indices →
+   clipOverlap (`results/bwa_mapping/{source}/`), split by genome at
+   MAPQ ≥ `mapq` (`results/wolbachia_screen/bams/`), mosdepth per genome,
+   and a long + wide table of reads / mean depth / breadth / depth ratios
+   (`results/wolbachia_screen/wolbachia_screen.*.coverage_{long,wide}.tsv`).
+   No infection call. Tested end-to-end on a slice (see session 2026-10-19).
+10. `10b_InStrain_Wolbachia_screen.smk` (`run_instrain_wolbachia`, FALSE) —
+   the user's spec: per sample, all paired-end runs (every lane and index)
+   in one bowtie2 call to the same nuclear + mtDNA + Wolbachia FASTA,
+   duplicates removed (Picard), then `inStrain profile <bam> <wolbachia.fa>
+   -g <prodigal genes.fna> --min_mapq 2` against the Wolbachia FASTA only;
+   all samples' `genome_info` tables in
+   `results/instrain_wolbachia/instrain.*.genome_info.tsv`. Mapping FASTA,
+   profile FASTA, `.stb` and genes file can be swapped in
+   `params.run_instrain_wolbachia` (e.g. other microbial genomes). Does not
+   need `run_wolbachia_screen` on: the reference rule is shared. Tested
+   end-to-end on the same slice (2 modern samples + a single-end blank).
+
+**Session 2026-10-19 (stages 10a, 10b), things not obvious from the code:**
+- The user wants three separate workflows: the bwa/mosdepth screen (10a),
+  the inStrain screen (10b), both modern only (+ blanks) for now, and later
+  the consensus/tree workflow, which must work for modern AND historical
+  samples. The user named the files 10a/10b (first written as 8a); they
+  wrote "scrreen" for 10b, Claude used "screen".
+- The bwa rules (`bwa_*`) take any reference by name: `{cref}` is looked up
+  in `BWA_REFS`, and the FASTA must sit at `BWA_REF_DIR/{cref}.fa`. Only the
+  screen's reference uses them now (10b maps with bowtie2).
+- Header checks are in `concat_screen_reference.py`: every mtDNA header must
+  contain "mitochondri", every Wolbachia header "wolbachia" (case ignored),
+  no nuclear header either word, contig names unique. The mtDNA contig name
+  is `ENA|FR990201|FR990201.1` (pipes are fine for bwa/samtools/mosdepth).
+- 10a read group `LB` is `{sample}_{index}`, not the lane as in 1.1. Picard
+  marks duplicates only within a library, so 1.1's lane-as-LB keeps
+  duplicates between lanes of the same index: on the 3M-pair LsKaz10 test
+  slice, index-as-LB removed 207,446 reads and lane-as-LB 148,590. 1.1 not
+  changed. 10b has one read group per sample, so it dedups across indices
+  too (all modern samples have a single index, `01`, so it makes no
+  difference here).
+- 34 rows of `modern_samples.tsv` have a space instead of a tab between
+  `rgGroup_ID` and `platform` (e.g. `C80HPANXX_L1_01 hiseq2000`), so their
+  RG ID contains the platform and PL is missing (`unknown` in the vg BAMs,
+  `ILLUMINA` in 10a). Harmless (IDs stay unique); the sheet was not edited.
+- mosdepth's summary `total` row only covers contigs that had reads, and
+  `regions.bed.gz` rounds the mean to 2 decimals, so the summary script
+  computes depth as Σ per-contig `bases` / genome length (from the
+  thresholds file, which lists every contig) instead.
+- Dry run with both screens on: 694 jobs (47 modern samples, 76 runs); 10b
+  alone 146. The 10a clipped BAM and the per-genome BAMs are kept (the tree
+  workflow will read the mtDNA/Wolbachia ones); the 10b deduplicated BAM is
+  kept (inStrain input).
+- Envs: `bwa.yaml` (bwa 0.7.19, samtools 1.21), `mosdepth.yaml` (0.3.14),
+  `bowtie2.yaml` (2.5.5, samtools 1.21), `prodigal.yaml` (2.6.3),
+  `instrain.yaml` (inStrain 1.10.0). inStrain needs the `defaults`
+  channel: with conda-forge + bioconda only, the solve ran about 40 min
+  without finishing; with `-c conda-forge -c bioconda -c defaults` (the
+  user's suggestion) it solved in 2.5 min (python 3.8). The env has no
+  samtools; inStrain reads the BAMs through pysam, and `is_dedup` indexes
+  them first.
+- inStrain `--min_mapq` is strict (MAPQ > value) and applies to either read
+  of a pair. Without `-s` every contig is one genome, `all_scaffolds`.
+  A sample with only single-end runs gets `--pairing_filter all_reads`,
+  since the default `paired_only` drops every read of it.
+- Hand test, LsKaz10 slice (3M pairs, slice reference): inStrain on the
+  Wolbachia FASTA gave coverage 2.60x, breadth 0.821, breadth_expected
+  0.899; 10a's mosdepth on the same reads (bwa) gave 2.69x, 0.824 at 1x.
+  bowtie2 end-to-end aligned 26% of the slice reads, bwa mem 53-58% (bwa
+  soft-clips reads from chromosomes missing from the slice into it).
+
 **Session 2026-10-05 (stage 6b), things not obvious from the code:**
 - `ngsadmix.sh` differs from upstream PopGLen by one line: its last line
   redirected to `"$snakemake_log[0]"`, which writes the log to a file
@@ -208,43 +282,28 @@ reported 2026-10-12) by switching to a local build of a recent `prune_graph`
 `config.yaml`); the pruned beagle in `results/ld/` is dated 2026-10-08 and
 `results/structure/{pca,ngsadmix}` have output.
 
-**Next planned stages** (plan as of 2026-10-12):
+**Next planned stages** (plan as of 2026-10-19):
 
-1. **Next session: Wolbachia screen + Wolbachia/mtDNA trees, modern samples
-   only**, as a new workflow file. Proposed by Claude on 2026-10-12, NOT yet
-   confirmed by the user; confirm the open points before building.
-   - Inputs the user will provide: a reference mtDNA contig and an assembly
-     of the Wolbachia found in the reference genome (paths go in
-     `config.yaml`).
-   - Proposed steps: (a) combined mtDNA + Wolbachia FASTA, indexed;
-     (b) per modern sample, take reads from the final BAM and map them to it
-     (bwa mem, MAPQ filter, duplicates removed); (c) per-sample Wolbachia
-     breadth of coverage and depth relative to nuclear depth → summary table
-     + infected / uninfected lists, thresholds in config, as a Snakemake
-     checkpoint because later rules depend on the infected set; (d) for
-     infected samples, haploid variant calling (bcftools, ploidy 1) and a
-     depth-masked consensus per sample for Wolbachia and for mtDNA, which
-     gives alignments directly because every sample shares the reference
-     coordinates; (e) IQ-TREE (ModelFinder + ultrafast bootstrap) on each
-     alignment; (f) R script comparing the two trees (tanglegram,
-     Robinson-Foulds distance, optionally IQ-TREE AU topology tests).
-   - Checked on 2026-10-12: the linear reference `.fai` has 49 sequences
-     and none is mtDNA-sized (the only non-chromosome contig is 44 kb), so
-     mtDNA and Wolbachia reads should be among the unmapped reads; the final
-     modern BAMs keep unmapped reads (LsKaz10: 2.16 M of 79.8 M).
-   - Open points: unmapped reads only vs. remapping all reads; infection
-     thresholds; mtDNA tree for infected samples only or all modern samples;
-     outgroups for rooting; whether within-species variation is enough to
-     resolve either tree; possible multiple Wolbachia strains per sample.
-     Tool packaging (bwa, samtools, bcftools, iqtree, R ape/phytools) not
-     yet verified on bioconda/conda-forge.
-2. RoH summary + plots, added to `7_FroH_bcftools.smk`: per-individual FRoH
+1. **Run 10a and 10b on the real data** (both toggles FALSE until then) and
+   look at the coverage tables. Nothing for an infection call is built yet.
+2. **Wolbachia/mtDNA consensus + trees**, its own workflow, for modern AND
+   historical samples (historical mapping for the screen is not built yet).
+   Earlier proposal (2026-10-12, not confirmed): infected / uninfected sets
+   from the screen table (thresholds in config, a checkpoint); haploid calls
+   (bcftools, ploidy 1) and a depth-masked consensus per sample for
+   Wolbachia and mtDNA from the per-genome BAMs of 10a; IQ-TREE (ModelFinder
+   + ultrafast bootstrap); an R script comparing the two trees (tanglegram,
+   Robinson-Foulds, optionally AU tests). Open: infection thresholds; mtDNA
+   tree for infected samples only or all; outgroups; whether there is enough
+   within-species variation; multiple Wolbachia strains per sample;
+   packaging of iqtree / R ape / phytools not checked.
+3. RoH summary + plots, added to `7_FroH_bcftools.smk`: per-individual FRoH
    and plots from the `bcftools_roh` region files. Not designed yet: needs
    the autosome length for the denominator, a minimum RoH length and length
    bins; the reference repo's `plot_Froh.R`
-3. One the RoH run is complete calculate individuals heterozygosity again as in 3_diversity_stats.smk but this time inside and outside RoHs of a specified size
+4. One the RoH run is complete calculate individuals heterozygosity again as in 3_diversity_stats.smk but this time inside and outside RoHs of a specified size
    (zjnolen/polyommatini-temporal-genomics) is the likely starting point.
-4. Effective population size with GONE2, modern samples only, as its own
+5. Effective population size with GONE2, modern samples only, as its own
    new workflow file. Nothing designed or checked yet: input genotype set,
    per-population grouping, and whether GONE2 has a bioconda/conda-forge
    package (check before choosing `conda:` vs `container:`) are all open.
