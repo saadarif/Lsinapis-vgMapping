@@ -28,6 +28,14 @@ properties:
     type: string
     description: "BED file of target regions to retain (no repeats, sex chromosomes, mtDNA, low mappability, ...)."
 
+  mtdna_fasta:
+    type: string
+    description: "mtDNA FASTA for the Wolbachia screens; every header must contain 'mitochondri' (case ignored)."
+
+  wolbachia_fasta:
+    type: string
+    description: "Wolbachia FASTA for the Wolbachia screens; every header must contain 'wolbachia' (case ignored)."
+
   modern_csv:
     type: string
     description: "Path to the TSV/CSV metadata for modern samples."
@@ -35,11 +43,6 @@ properties:
   historical_csv:
     type: string
     description: "Path to the TSV/CSV metadata for historical samples."
-
-  blanks_csv:
-    type: string
-    default: ""
-    description: "TSV/CSV of blanks (same columns as modern_csv, fq2 optional). Only used by run_wolbachia_screen."
 
   # --- Analysis Toggles ---
   run_multiqc:
@@ -80,7 +83,7 @@ properties:
 
   run_wolbachia_screen:
     type: boolean
-    description: "Modern samples + blanks mapped with bwa mem to nuclear + mtDNA + Wolbachia; depth and breadth per genome with mosdepth."
+    description: "Modern samples mapped with bwa mem to nuclear + mtDNA + Wolbachia; depth and breadth per genome with mosdepth."
 
   run_instrain_wolbachia:
     type: boolean
@@ -321,12 +324,6 @@ properties:
       run_wolbachia_screen:
         type: object
         properties:
-          mtdna_fasta:
-            type: string
-            description: "mtDNA FASTA; every header must contain 'mitochondri' (case ignored)."
-          wolbachia_fasta:
-            type: string
-            description: "Wolbachia FASTA; every header must contain 'wolbachia' (case ignored)."
           mapq:
             type: integer
             minimum: 0
@@ -348,9 +345,6 @@ properties:
             type: integer
             minimum: 1
             default: 4
-        required:
-          - mtdna_fasta
-          - wolbachia_fasta
 
       run_instrain_wolbachia:
         type: object
@@ -358,7 +352,7 @@ properties:
           mapping_fasta:
             type: string
             default: ""
-            description: "bowtie2 reference; empty = the Wolbachia screen's nuclear + mtDNA + Wolbachia FASTA."
+            description: "bowtie2 reference; empty = reference + mtdna_fasta + wolbachia_fasta, concatenated by this workflow."
           mapping_name:
             type: string
             default: ""
@@ -367,7 +361,7 @@ properties:
           profile_fasta:
             type: string
             default: ""
-            description: "FASTA inStrain profiles; empty = run_wolbachia_screen: wolbachia_fasta."
+            description: "FASTA inStrain profiles; empty = wolbachia_fasta."
           profile_name:
             type: string
             default: "wolbachia"

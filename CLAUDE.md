@@ -133,9 +133,9 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
 
 9. `10a_Wolbachia_screen.smk` (`run_wolbachia_screen`, FALSE in
    `config.yaml` until the full run is started) — the nuclear reference +
-   mtDNA + Wolbachia FASTAs (`params.run_wolbachia_screen`) concatenated into
+   mtDNA + Wolbachia FASTAs (top-level `mtdna_fasta` / `wolbachia_fasta`) concatenated into
    `results/bwa_mapping/reference/{REF_NAME}_mtWolb.fa` (+ `.stb` and one
-   BED per genome), then modern samples + blanks (`blanks_csv`) mapped with
+   BED per genome), then modern samples (paired-end) mapped with
    bwa mem → merge lanes per index → Picard MarkDuplicates → merge indices →
    clipOverlap (`results/bwa_mapping/{source}/`), split by genome at
    MAPQ ≥ `mapq` (`results/wolbachia_screen/bams/`), mosdepth per genome,
@@ -144,19 +144,27 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    No infection call. Tested end-to-end on a slice (see session 2026-10-19).
 10. `10b_InStrain_Wolbachia_screen.smk` (`run_instrain_wolbachia`, FALSE) —
    the user's spec: per sample, all paired-end runs (every lane and index)
-   in one bowtie2 call to the same nuclear + mtDNA + Wolbachia FASTA,
+   in one bowtie2 call to nuclear + mtDNA + Wolbachia (its own copy,
+   `results/bowtie2_mapping/reference/{REF_NAME}_mtWolb.fa`),
    duplicates removed (Picard), then `inStrain profile <bam> <wolbachia.fa>
    -g <prodigal genes.fna> --min_mapq 2` against the Wolbachia FASTA only;
    all samples' `genome_info` tables in
    `results/instrain_wolbachia/instrain.*.genome_info.tsv`. Mapping FASTA,
    profile FASTA, `.stb` and genes file can be swapped in
-   `params.run_instrain_wolbachia` (e.g. other microbial genomes). Does not
-   need `run_wolbachia_screen` on: the reference rule is shared. Tested
-   end-to-end on the same slice (2 modern samples + a single-end blank).
+   `params.run_instrain_wolbachia` (e.g. other microbial genomes). Tested
+   end-to-end on the same slice (2 modern samples).
+   - 10a and 10b are independent (user's requirement, 2026-10-19): neither
+     uses a rule, constant or function of the other, and each runs or can be
+     `include:`d alone. Shared inputs live outside both: `mtdna_fasta` /
+     `wolbachia_fasta` (top-level config, Reference Files) and `samples_df`.
+     Each builds its own concatenated FASTA with the same script
+     (`concat_screen_reference.py`), so with both on it is built twice.
+     Checked with scratch Snakefiles including 10a only, 10b only (also run
+     end-to-end) and both.
 
 **Session 2026-10-19 (stages 10a, 10b), things not obvious from the code:**
 - The user wants three separate workflows: the bwa/mosdepth screen (10a),
-  the inStrain screen (10b), both modern only (+ blanks) for now, and later
+  the inStrain screen (10b), both modern only for now, and later
   the consensus/tree workflow, which must work for modern AND historical
   samples. The user named the files 10a/10b (first written as 8a); they
   wrote "scrreen" for 10b, Claude used "screen".
@@ -210,10 +218,10 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
   `regions.bed.gz` rounds the mean to 2 decimals, so the summary script
   computes depth as Σ per-contig `bases` / genome length (from the
   thresholds file, which lists every contig) instead.
-- Dry run with both screens on: 694 jobs (47 modern samples, 76 runs); 10b
-  alone 146. The 10a clipped BAM and the per-genome BAMs are kept (the tree
-  workflow will read the mtDNA/Wolbachia ones); the 10b deduplicated BAM is
-  kept (inStrain input).
+- Real-repo dry runs: 10a alone 550 jobs, 10b alone 146 (no 10a job),
+  both 695 (47 modern samples, 76 runs). The 10a clipped BAM and the
+  per-genome BAMs are kept (the tree workflow will read the mtDNA/Wolbachia
+  ones); the 10b deduplicated BAM is kept (inStrain input).
 - Envs: `bwa.yaml` (bwa 0.7.19, samtools 1.21), `mosdepth.yaml` (0.3.14),
   `bowtie2.yaml` (2.5.5, samtools 1.21), `prodigal.yaml` (2.6.3),
   `instrain.yaml` (inStrain 1.10.0). inStrain needs the `defaults`
@@ -224,8 +232,15 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
   them first.
 - inStrain `--min_mapq` is strict (MAPQ > value) and applies to either read
   of a pair. Without `-s` every contig is one genome, `all_scaffolds`.
-  A sample with only single-end runs gets `--pairing_filter all_reads`,
-  since the default `paired_only` drops every read of it.
+- inStrain writes the 30 `genome_info` columns in a different order from
+  run to run (seen between samples of one run), so
+  `instrain_genome_info_summary.py` matches columns by name; matching by
+  position failed on the second test run.
+- No blanks (negative controls) exist for the modern samples; blanks only
+  apply to historical samples (user, 2026-10-19). Blank / single-end support
+  was written for 10a/10b and then removed at the user's request; both
+  screens map paired-end modern reads only and stop with an error on a run
+  without fq2. Blanks belong with the historical samples, if those are added.
 - Hand test, LsKaz10 slice (3M pairs, slice reference): inStrain on the
   Wolbachia FASTA gave coverage 2.60x, breadth 0.821, breadth_expected
   0.899; 10a's mosdepth on the same reads (bwa) gave 2.69x, 0.824 at 1x.

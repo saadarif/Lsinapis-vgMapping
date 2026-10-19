@@ -258,16 +258,16 @@ def get_final_targets(wildcards):
     if config.get("run_roh", False):
         targets.extend(ROH_TARGETS)
 
-    # 14. Add Wolbachia screen targets (modern samples + blanks mapped with bwa mem
+    # 14. Add Wolbachia screen targets (modern samples mapped with bwa mem
     #     to nuclear + mtDNA + Wolbachia, split by genome at a MAPQ cutoff, then
     #     mosdepth depth/breadth summary). Assembled in the rule file.
     if config.get("run_wolbachia_screen", False):
         targets.extend(WOLB_SCREEN_TARGETS)
 
     # 15. Add inStrain Wolbachia screen targets (bowtie2 of all runs per sample to
-    #     the screen's competitive FASTA, duplicates removed, inStrain profile
-    #     against the Wolbachia FASTA). Assembled in the rule file. Does not need
-    #     run_wolbachia_screen: the reference it maps to is built either way.
+    #     nuclear + mtDNA + Wolbachia, duplicates removed, inStrain profile
+    #     against the Wolbachia FASTA). Assembled in the rule file. Independent
+    #     of section 14: it builds its own reference.
     if config.get("run_instrain_wolbachia", False):
         targets.extend(IS_TARGETS)
 

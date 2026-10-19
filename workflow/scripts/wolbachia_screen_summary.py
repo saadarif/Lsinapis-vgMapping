@@ -19,7 +19,7 @@ Outputs:
   long  one row per sample and genome
   wide  one row per sample, with the depth ratios
         mitochondrion/nuclear, wolbachia/nuclear and wolbachia/mitochondrion
-        (NA when the denominator has no coverage, e.g. most blanks)
+        (NA when the denominator has no coverage)
 """
 
 import gzip

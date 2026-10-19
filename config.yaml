@@ -11,16 +11,18 @@ vg_prefix: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/vgconstruct/DTOLREF.modvars"
 #Site filter bed
 # a bed file for target regions to retain, e.g. no repeats, no sex chromosomes, no mtDNA, no collapsed regions, no regions with low mappability, etc. Can be generated using bedtools intersect -v with a bed file of all sites and a bed file of sites to exclude
 site_filter_bed: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ref_genome/ZNolen_site_filters/Leptidea_sinapis-GCA_905404315.1-softmasked_autosomes_minScaf1MB_repma_snpabble_collma.bed"
+# mtDNA and Wolbachia assembly, used by the Wolbachia screens (run_wolbachia_screen,
+# run_instrain_wolbachia), each of which concatenates them with the nuclear
+# reference above for competitive mapping. Every FASTA header must name the
+# sequence type: "mitochondri..." in the mtDNA file, "wolbachia" in the Wolbachia
+# file (case ignored).
+mtdna_fasta: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ref_genome/GCA_905404315-chromosome-MT.fasta"
+wolbachia_fasta: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ncbi_dataset/data/GCF_947179455.1/GCF_947179455.1_ilLepSina1.Wolbachia_sp_1.1_genomic.fna"
 
 
 # --- Input Metadata ---
 modern_csv: "modern_samples.tsv"
 historical_csv: "historical_samples.tsv"
-# Blanks (e.g. extraction / library negative controls), same columns as
-# modern_samples.tsv; fq2 can be left out or empty for single-end reads. Only
-# used by run_wolbachia_screen, which maps them alongside the modern samples.
-# Leave empty for no blanks. sample_ids must differ from the sample sheets'.
-blanks_csv: ""
 
 # --- Analysis Toggles ---
 run_multiqc: TRUE
@@ -33,7 +35,7 @@ run_ld_estimation: TRUE #pairwise LD with ngsLD on the relatedness beagle file, 
 run_pca: TRUE #PCA with PCAngsd on the LD-pruned beagle file, after dropping any individuals under params: run_pca: exclude_samples
 run_admixture: TRUE #NGSadmix for K = 1..max_k (replicated to convergence) + evalAdmix model fit, on the same beagle file as the PCA
 run_roh: TRUE #runs ROH on specified vcf files
-run_wolbachia_screen: FALSE #modern samples + blanks mapped with bwa mem to nuclear + mtDNA + Wolbachia, then depth/breadth per genome with mosdepth
+run_wolbachia_screen: FALSE #modern samples mapped with bwa mem to nuclear + mtDNA + Wolbachia, then depth/breadth per genome with mosdepth
 run_instrain_wolbachia: FALSE #same samples mapped with bowtie2 (all runs at once) to the same reference, then inStrain profile against the Wolbachia FASTA
 
 # --- Subsampling ---
@@ -162,25 +164,21 @@ params:
     threads: 6
 
   run_wolbachia_screen:
-    # Concatenated with the nuclear reference above for competitive mapping.
-    # Every FASTA header must name the sequence type: "mitochondri..." in the
-    # mtDNA file, "wolbachia" in the Wolbachia file (case ignored).
-    mtdna_fasta: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ref_genome/GCA_905404315-chromosome-MT.fasta"
-    wolbachia_fasta: "/mnt/sda/saad/WW_Trimmed_Reads_WWPaper/ncbi_dataset/data/GCF_947179455.1/GCF_947179455.1_ilLepSina1.Wolbachia_sp_1.1_genomic.fna"
+    # Maps to reference + mtdna_fasta + wolbachia_fasta (Reference Files above)
     mapq: 30                       # reads below this MAPQ are left out of the per-genome BAMs
     breadth_thresholds: [1, 5, 10] # breadth = fraction of a genome at depth >= each of these
     threads_bwa: 16
     threads_mosdepth: 4
 
   run_instrain_wolbachia:
-    # Uses mtdna_fasta / wolbachia_fasta and blanks_csv from above.
-    # bowtie2 reference. Empty -> the Wolbachia screen's nuclear + mtDNA +
-    # Wolbachia FASTA. Or another FASTA (e.g. nuclear + mtDNA + several
-    # microbial genomes) with a name for the output files (no dots).
+    # Independent of run_wolbachia_screen. bowtie2 reference. Empty -> reference
+    # + mtdna_fasta + wolbachia_fasta (Reference Files above), concatenated by
+    # this workflow. Or another FASTA (e.g. nuclear + mtDNA + several microbial
+    # genomes) with a name for the output files (no dots).
     mapping_fasta: ""
     mapping_name: ""
     # FASTA inStrain profiles (uncompressed). Its contigs must be in the
-    # mapping FASTA under the same names. Empty -> wolbachia_fasta above.
+    # mapping FASTA under the same names. Empty -> wolbachia_fasta (Reference Files).
     profile_fasta: ""
     profile_name: "wolbachia"  # in the output file names (no dots)
     stb: ""                    # optional inStrain -s (contig -> genome), for a profile FASTA of several genomes

@@ -1,14 +1,13 @@
 # ==============================================================================
 # WOLBACHIA SCREEN (competitive mapping with bwa mem + mosdepth)
 #   (i)   Concatenate the nuclear reference (config: reference), the mtDNA and
-#         the Wolbachia assembly (params: run_wolbachia_screen: mtdna_fasta /
-#         wolbachia_fasta) into one FASTA and index it for bwa. Every header of
-#         the mtDNA FASTA must contain "mitochondri" and every header of the
-#         Wolbachia FASTA "wolbachia" (case ignored); see
+#         the Wolbachia assembly (config: mtdna_fasta / wolbachia_fasta) into
+#         one FASTA and index it for bwa. Every header of the mtDNA FASTA must
+#         contain "mitochondri" and every header of the Wolbachia FASTA
+#         "wolbachia" (case ignored); see
 #         workflow/scripts/concat_screen_reference.py for the checks. It also
 #         writes the contig -> genome file (.stb) and one BED per genome.
-#   (ii)  Map the trimmed reads of every modern sample, and of the blanks in
-#         params: run_wolbachia_screen: blanks_csv, to it: bwa mem per run ->
+#   (ii)  Map the trimmed paired-end reads of every modern sample to it: bwa mem per run ->
 #         merge runs of the same index -> Picard MarkDuplicates -> merge the
 #         indices of a sample -> bam clipOverlap. The same steps as the modern
 #         vg mapping (1.1_mapping.smk), with bwa mem in place of vg map.
@@ -22,7 +21,7 @@
 #         genomes (Wolbachia / nuclear, mtDNA / nuclear, Wolbachia / mtDNA).
 #         No infection call is made; the table is for choosing thresholds.
 #
-# Only modern samples (and blanks) for now. Historical samples would need their
+# Only modern samples for now. Historical samples would need their
 # own mapping rule (short single-end reads, e.g. bwa aln, and dedup instead of
 # Picard), but every path already carries {source}, so the split / mosdepth /
 # summary rules would take them as they are.
@@ -31,8 +30,9 @@
 # up in BWA_REFS, so another competitive reference added to BWA_REFS is mapped
 # by the same rules. Its FASTA just has to be written to BWA_REF_DIR/{cref}.fa.
 #
-# The inStrain screen (10b_InStrain_Wolbachia_screen.smk) maps separately, with
-# bowtie2, but to the FASTA built here.
+# Independent of the inStrain screen (10b_InStrain_Wolbachia_screen.smk): 10b
+# builds its own copy of the same competitive FASTA and uses nothing defined
+# here, so either file can be run (or included) without the other.
 #
 # Library (LB) in the read groups is the sample's index, so Picard marks
 # duplicates across the lanes of an index (the lanes of an index are one PCR
@@ -40,8 +40,8 @@
 # afterwards in modern_dedup_libraries.
 # ==============================================================================
 WOLB_PARAMS = config.get("params", {}).get("run_wolbachia_screen", {})
-WOLB_MTDNA_FA = WOLB_PARAMS.get("mtdna_fasta", "")
-WOLB_WOLBACHIA_FA = WOLB_PARAMS.get("wolbachia_fasta", "")
+WOLB_MTDNA_FA = config.get("mtdna_fasta", "")
+WOLB_WOLBACHIA_FA = config.get("wolbachia_fasta", "")
 WOLB_MAPQ = WOLB_PARAMS.get("mapq", 30)
 WOLB_THRESHOLDS = [int(t) for t in WOLB_PARAMS.get("breadth_thresholds", [1, 5, 10])]
 WOLB_THREADS_BWA = WOLB_PARAMS.get("threads_bwa", config.get("threads_mapping", 16))
@@ -58,39 +58,20 @@ WOLB_COV_TAG = f"{WOLB_TAG}.bt{'-'.join(str(t) for t in WOLB_THRESHOLDS)}"
 BWA_REF_DIR = "results/bwa_mapping/reference"
 BWA_REFS = {WOLB_REF: f"{BWA_REF_DIR}/{WOLB_REF}.fa"}
 
-# Samples mapped: every modern sample, plus the blanks. The blanks sheet has the
-# same columns as modern_samples.tsv (fq2 may be left out or empty for
-# single-end reads) and goes through the Snakefile's load_metadata.
-WOLB_BLANKS_CSV = config.get("blanks_csv", "")
-WOLB_SOURCES = "modern|blank"
+WOLB_SOURCES = "modern"
 
 _wolb_on = config.get("run_wolbachia_screen", False)
-# 10b maps the same samples to the same reference, so the inputs are checked
-# when either screen is on
-_wolb_inputs_on = _wolb_on or config.get("run_instrain_wolbachia", False)
-if _wolb_inputs_on:
+if _wolb_on:
     for _key, _path in [("mtdna_fasta", WOLB_MTDNA_FA), ("wolbachia_fasta", WOLB_WOLBACHIA_FA)]:
         if not _path or not os.path.exists(_path):
-            print(f"\nERROR: params: run_wolbachia_screen: {_key} '{_path}' does not exist.\n")
+            print(f"\nERROR: {_key} '{_path}' (config.yaml, Reference Files) does not exist.\n")
             sys.exit(1)
-    if WOLB_BLANKS_CSV and not os.path.exists(WOLB_BLANKS_CSV):
-        print(f"\nERROR: blanks_csv '{WOLB_BLANKS_CSV}' does not exist.\n")
-        sys.exit(1)
     if not WOLB_THRESHOLDS:
         print("\nERROR: params: run_wolbachia_screen: breadth_thresholds needs at least one value.\n")
         sys.exit(1)
 
-wolb_blanks_df = load_metadata("blanks_csv", "blank")
-_clash = set(wolb_blanks_df["sample_id"]) & set(samples_df["sample_id"])
-if _wolb_inputs_on and _clash:
-    print(f"\nERROR: blank sample_id(s) {sorted(_clash)} are also sample_ids in the sample sheets; give the blanks their own IDs.\n")
-    sys.exit(1)
-
-# fillna again after the concat: columns only one sheet has (e.g. rgGroup_ID,
-# platform) are NaN for the other's rows
-WOLB_SAMPLES_DF = pd.concat(
-    [samples_df[samples_df["source"] == "modern"], wolb_blanks_df], ignore_index=True
-).fillna("unknown")
+# Samples mapped: every modern sample
+WOLB_SAMPLES_DF = samples_df[samples_df["source"] == "modern"]
 
 # (source, sample_id) of every sample in the screen
 WOLB_UNITS = list(
@@ -141,9 +122,12 @@ def bwa_run_row(wildcards):
 
 
 def bwa_reads(wildcards):
-    """fq1, plus fq2 when the run is paired-end."""
+    """fq1 and fq2 of a (paired-end) run."""
     row = bwa_run_row(wildcards)
-    return [row["fq1"]] + ([row["fq2"]] if row["fq2"] != "unknown" else [])
+    if row["fq2"] == "unknown":
+        raise ValueError(f"Run '{wildcards.run_id}' of '{wildcards.sample_id}' has no fq2; "
+                         "the Wolbachia screen maps paired-end reads only")
+    return [row["fq1"], row["fq2"]]
 
 
 def bwa_rg_string(wildcards):
@@ -236,7 +220,7 @@ rule bwa_index_reference:
 #      (see the note in 1.1_mapping.smk). The clipped BAM is kept.
 # ------------------------------------------------------------------------------
 rule bwa_map:
-    """bwa mem per run (paired-end, or single-end when fq2 is missing)."""
+    """bwa mem per run (paired-end)."""
     input:
         reads = bwa_reads,
         ref = bwa_ref_fasta,

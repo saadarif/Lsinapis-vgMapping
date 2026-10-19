@@ -1,8 +1,10 @@
 """
-Builds the competitive mapping reference of the Wolbachia screen
-(workflow/rules/10a_Wolbachia_screen.smk): the nuclear reference, the mtDNA and
-the Wolbachia assembly concatenated into one FASTA, plus the files that say
-which genome each contig belongs to.
+Builds the competitive mapping reference of the Wolbachia screens: the nuclear
+reference, the mtDNA and the Wolbachia assembly concatenated into one FASTA,
+plus the files that say which genome each contig belongs to. Used by
+wolb_concat_reference (workflow/rules/10a_Wolbachia_screen.smk) and
+is_concat_reference (workflow/rules/10b_InStrain_Wolbachia_screen.smk), each
+writing its own copy so the two workflows stay independent.
 
 Called via Snakemake's `script:` directive, so `snakemake.input`,
 `snakemake.output` and `snakemake.log` are injected automatically.
