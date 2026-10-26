@@ -91,15 +91,17 @@ def nes_vcf_samples(path):
 
 # Subset name -> its samples, n_max down to n_min. Only worked out when the
 # workflow is on, so a VCF that doesn't exist yet doesn't stop other runs.
-NES_NAME = ""
+# The name comes from the file name alone, so the rules' paths are well formed
+# (no empty folder name) even when the workflow is off or the VCF is not there.
+NES_NAME = "none"
+for _ext in (".vcf.gz", ".vcf", ".bcf"):
+    if os.path.basename(NES_VCF).endswith(_ext) and len(os.path.basename(NES_VCF)) > len(_ext):
+        NES_NAME = os.path.basename(NES_VCF)[: -len(_ext)]
+        break
 NES_SAMPLES = []
 NES_SUBSETS = {}
 if config.get("run_ne_stability", False):
-    for _ext in (".vcf.gz", ".vcf", ".bcf"):
-        if NES_VCF.endswith(_ext):
-            NES_NAME = os.path.basename(NES_VCF)[: -len(_ext)]
-            break
-    else:
+    if NES_NAME == "none":
         nes_error(f"vcf '{NES_VCF}' must end in .vcf.gz, .vcf or .bcf.")
     if not os.path.exists(NES_VCF):
         nes_error(
