@@ -7,3 +7,4 @@ logs/
 otherResults/
 .claude/settings.local.json
 *.pdf
+config*

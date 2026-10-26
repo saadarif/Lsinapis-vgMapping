@@ -36,7 +36,7 @@ run_pca: TRUE #PCA with PCAngsd on the LD-pruned beagle file, after dropping any
 run_admixture: TRUE #NGSadmix for K = 1..max_k (replicated to convergence) + evalAdmix model fit, on the same beagle file as the PCA
 run_roh: TRUE #runs ROH on specified vcf files
 run_wolbachia_screen: TRUE #modern samples mapped with bwa mem to nuclear + mtDNA + Wolbachia, then depth/breadth per genome with mosdepth
-run_instrain_wolbachia: TRUE #same samples mapped with bowtie2 (all runs at once) to the same reference, then inStrain profile against the Wolbachia FASTA
+run_instrain_wolbachia: FALSE #same samples mapped with bowtie2 (all runs at once) to the same reference, then inStrain profile against the Wolbachia FASTA
 run_contemporary_ne: TRUE #per-population VCFs from the VCF under params: run_contemporary_ne, then GONE2 and currentNe2 with and without -x
 run_ne_stability: FALSE #GONE2 and currentNe2 on every subset of n_min..n_max individuals of one population VCF (the VCF must exist already)
 
