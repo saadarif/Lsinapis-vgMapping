@@ -202,7 +202,7 @@ params:
     vcf: "results/genotyping_rescaled/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.rescaled.biallelic.bcf"
     poplist: "Pops_GTS.txt"    # sample_id and population, no header
     populations: ["Dev", "Kaz", "Nth", "Spa", "Swe"] #Only modern samples used for now
-    maxMissing: [0.0, 0.1, 0.2] # max fraction of missing genotypes per site within each population.
+    maxMissing: [0.0] # max fraction of missing genotypes per site within each population.
                                 # GONE2 drops SNPs with >= 20% missing by itself.
     rec_rate: 7.4              # cM/Mb, -r of GONE2 and currentNe2 (7.4 = run_roh rec_rate 7.4e-8 per bp)
     gone2: /mnt/sda/saad/tools/GONE2/gone2
