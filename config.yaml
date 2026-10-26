@@ -221,7 +221,8 @@ params:
     # exist before run_ne_stability is switched on (its sample names are read when
     # the workflow is parsed). Results in
     # results/contemporary_ne_stability/<file name without extension>/.
-    vcf: "results/contemporary_ne/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic/population_vcfs/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic.Kaz.fmiss0.2.mac2.vcf.gz"
+    # Use the Nth pop as this has the most inds (11)
+    vcf: "results/contemporary_ne/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic/population_vcfs/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.rescaled.biallelic.Nth.minDP8.fmiss0.0.mac2.vcf.gz"
     n_max: 11      # number of individuals in the VCF (checked against it)
     n_min: 6       # smallest subset; every subset of n_min..n_max individuals is run.
                    # Subsets of each size n: C(n_max, n). For n_max 11: 1 of 11 (all),

@@ -12,9 +12,10 @@
 #   are dropped are removed again (as in 9a). Missingness is not filtered
 #   again.
 #
-#   Plots: all GONE2 Ne trajectories (full set in bold, smaller subsets in
-#   lighter colours), and currentNe2 Ne against the number of individuals with
-#   a linear regression; plus a table of all currentNe2 estimates.
+#   Plots: one GONE2 plot per subset size below n_max (the full set's Ne
+#   trajectory dark, every subset of that size light), and currentNe2 Ne
+#   against the number of individuals with a linear regression; plus a table
+#   of all currentNe2 estimates.
 #
 # There are C(n_max, n) subsets of n individuals, e.g. for n_max = 11: 1 of 11,
 # 11 of 10, 55 of 9, 165 of 8, 330 of 7, 462 of 6, so 1024 subsets in total
@@ -100,6 +101,7 @@ for _ext in (".vcf.gz", ".vcf", ".bcf"):
         break
 NES_SAMPLES = []
 NES_SUBSETS = {}
+NES_N_WIDTH = 1  # zero-padding of the subset size in names (n09, n10, ...)
 if config.get("run_ne_stability", False):
     if NES_NAME == "none":
         nes_error(f"vcf '{NES_VCF}' must end in .vcf.gz, .vcf or .bcf.")
@@ -129,11 +131,11 @@ if config.get("run_ne_stability", False):
         if not (os.path.isfile(_exe) and os.access(_exe, os.X_OK)):
             nes_error(f"{_key} '{_exe}' is not an executable file.")
     # Zero-padded to widths that depend only on n_max, so names don't change with n_min
-    _w_n = len(str(NES_N_MAX))
+    NES_N_WIDTH = len(str(NES_N_MAX))
     _w_c = len(str(math.comb(NES_N_MAX, NES_N_MAX // 2)))
     for _n in range(NES_N_MAX, NES_N_MIN - 1, -1):
         for _i, _keep in enumerate(itertools.combinations(NES_SAMPLES, _n), start=1):
-            NES_SUBSETS[f"n{_n:0{_w_n}d}.c{_i:0{_w_c}d}"] = list(_keep)
+            NES_SUBSETS[f"n{_n:0{NES_N_WIDTH}d}.c{_i:0{_w_c}d}"] = list(_keep)
 
 NES_DIR = f"results/contemporary_ne_stability/{NES_NAME}"
 NES_LOG_DIR = f"logs/contemporary_ne_stability/{NES_NAME}"
@@ -143,16 +145,37 @@ NES_RANGE = f"n{NES_N_MIN}-{NES_N_MAX}"
 NES_SUBSETS_TABLE = f"{NES_DIR}/{NES_NAME}.{NES_RANGE}.subsets.tsv"
 NES_GONE2_NE = f"{NES_DIR}/gone2/{NES_NAME}.{{nes_subset}}.{NES_GONE2_TAG}.Ne.tsv"
 NES_CURRENTNE2_TXT = f"{NES_DIR}/currentne2/{NES_NAME}.{{nes_subset}}.{NES_CURRENTNE2_TAG}.txt"
-NES_GONE2_PLOT = f"{NES_DIR}/plots/{NES_NAME}.{NES_RANGE}.{NES_GONE2_TAG}.Ne_trajectories.pdf"
+# One GONE2 plot per subset size ({nes_size} = n10, n09, ...): it depends only on
+# the full set and the subsets of that size, so it doesn't change with n_min
+NES_GONE2_PLOT = f"{NES_DIR}/plots/{NES_NAME}.{{nes_size}}.{NES_GONE2_TAG}.Ne_trajectories.pdf"
 NES_CURRENTNE2_SUMMARY = f"{NES_DIR}/currentne2/{NES_NAME}.{NES_RANGE}.{NES_CURRENTNE2_TAG}.summary.tsv"
 NES_CURRENTNE2_PLOT = f"{NES_DIR}/plots/{NES_NAME}.{NES_RANGE}.{NES_CURRENTNE2_TAG}.Ne_vs_n.pdf"
 
-# Requested from the Snakefile target list (section 17)
+
+def nes_size_name(n):
+    return f"n{n:0{NES_N_WIDTH}d}"
+
+
+def nes_size_of(wildcards):
+    return int(wildcards.nes_size[1:])
+
+
+def nes_subsets_of_size(wildcards):
+    """Subsets with {nes_size} individuals, other than the full set."""
+    n = nes_size_of(wildcards)
+    return [sid for sid, keep in NES_SUBSETS.items() if len(keep) == n and n < NES_N_MAX]
+
+
+# Requested from the Snakefile target list (section 17). GONE2 plots for every
+# subset size below n_max; only the full set's when n_min = n_max.
 NES_TARGETS = []
 if config.get("run_ne_stability", False):
-    NES_TARGETS = [NES_GONE2_PLOT, NES_CURRENTNE2_SUMMARY, NES_CURRENTNE2_PLOT]
+    NES_TARGETS = [
+        NES_GONE2_PLOT.format(nes_size=nes_size_name(n))
+        for n in (list(range(NES_N_MAX - 1, NES_N_MIN - 1, -1)) or [NES_N_MAX])
+    ] + [NES_CURRENTNE2_SUMMARY, NES_CURRENTNE2_PLOT]
 
-NES_CONSTRAINTS = {"nes_subset": r"n[0-9]+\.c[0-9]+"}
+NES_CONSTRAINTS = {"nes_subset": r"n[0-9]+\.c[0-9]+", "nes_size": r"n[0-9]+"}
 
 
 rule nes_subsets_table:
@@ -258,21 +281,24 @@ rule nes_currentne2:
 
 rule nes_plot_gone2:
     """
-    GONE2 Ne trajectories of every subset: the full set in bold, smaller
-    subsets in lighter colours by number of individuals; second page one panel
-    per subset size.
+    GONE2 Ne trajectories for one subset size: the full set of n_max
+    individuals as a dark line, every subset of {nes_size} individuals as a
+    light line.
     """
     input:
-        ne = expand(NES_GONE2_NE, nes_subset=list(NES_SUBSETS)),
-        subsets = NES_SUBSETS_TABLE,
+        full = lambda wildcards: expand(NES_GONE2_NE, nes_subset=list(NES_SUBSETS)[:1]),
+        subsets = lambda wildcards: expand(NES_GONE2_NE, nes_subset=nes_subsets_of_size(wildcards)),
     output:
         pdf = NES_GONE2_PLOT,
+    wildcard_constraints:
+        **NES_CONSTRAINTS,
     params:
-        subsets = list(NES_SUBSETS),
+        subsets = nes_subsets_of_size,
+        n = nes_size_of,
         n_max = NES_N_MAX,
-        title = f"GONE2 Ne, subsets of {NES_N_MIN}-{NES_N_MAX} individuals",
+        title = lambda wildcards: f"GONE2 Ne, subsets of {nes_size_of(wildcards)} of {NES_N_MAX} individuals",
         subtitle = f"{NES_NAME}\nGONE2 {'-x ' if NES_X else ''}-r {NES_REC_RATE} -S {NES_GONE2_SEED}",
-    log: f"{NES_LOG_DIR}/plots/plot_gone2_{NES_NAME}.{NES_RANGE}.{NES_GONE2_TAG}.log"
+    log: f"{NES_LOG_DIR}/plots/plot_gone2_{NES_NAME}.{{nes_size}}.{NES_GONE2_TAG}.log"
     conda: "../envs/r_ne_plot.yaml"
     script: "../scripts/plot_ne_stability_gone2.R"
 

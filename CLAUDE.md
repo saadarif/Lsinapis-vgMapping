@@ -177,8 +177,13 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    (itertools.combinations over sorted sample names, widths fixed by
    `n_max`, so changing `n_min` reuses runs), listed in
    `<vcf>.n<min>-<max>.subsets.tsv`. Plots (`plot_ne_stability_gone2.R`:
-   all trajectories, full set bold black, smaller subsets light colours by
-   n, page 2 one panel per n; `plot_ne_stability_currentne2.R`: Ne vs n,
+   one PDF per subset size below n_max, `<vcf>.n<size>.<gone2 tag>.
+   Ne_trajectories.pdf`, full-set trajectory dark navy on top of every
+   subset of that size in light blue — user's layout, 2026-10-26, replacing
+   a single all-sizes plot; each depends only on its own size's GONE2 runs,
+   so plots appear as sizes finish and don't change with n_min; only an
+   n_max plot of the full set when n_min = n_max;
+   `plot_ne_stability_currentne2.R`: Ne vs n,
    linear regression with equation/R²/p, one panel per currentNe2 estimate
    type) and a table of all currentNe2 estimates. Results under
    `results/contemporary_ne_stability/<vcf name>/{gone2,currentne2,plots}/`.
