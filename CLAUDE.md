@@ -184,8 +184,19 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    The VCF's sample names are read at parse time (gzip header read, also
    for BCF), so the VCF must exist before the toggle is on (clear error
    otherwise); `n_max` must equal its sample count, `n_min >= 3`.
-   Subsets: sum of C(n_max, n), n = n_min..n_max (n_max 10: 11, 56, 176,
-   386, 638 for n_min 9..5).
+   C(n_max, n) subsets of each size n, n = n_min..n_max (n_max 11, Nth:
+   1, 11, 55, 165, 330, 462 for n = 11..6, 1024 in total with n_min 6;
+   checked against the rule's enumeration, all unique). An earlier config
+   comment gave cumulative totals for n_max 10 (e.g. 638 for n_min 5),
+   which the user read as a per-step count; it now gives per-size counts. Tested end-to-end (scratch Snakefile including
+   only this file) on the 9a test's Dev `fmiss0.2` VCF (6 samples, 103,183
+   SNPs on chromosomes 1, 4, 5), n_min 4, nox: 22 subsets, 48 jobs, every
+   subset with GONE2 and currentNe2 estimates; the full set reproduces 9a's
+   currentNe2 Ne (26.53). On so little data the subsets scatter widely
+   (whole-genome Ne 15-77 at n 4-5; one between-chromosomes estimate 3,148,
+   90% CI 62-160,597), so no regression signal (R² 0.004). Regression
+   equations go in the facet strips: as text inside the panel they hid
+   points. Not run on real data yet.
 11. `10a_Wolbachia_screen.smk` (`run_wolbachia_screen`, FALSE in
    `config.yaml` until the full run is started) — the nuclear reference +
    mtDNA + Wolbachia FASTAs (top-level `mtdna_fasta` / `wolbachia_fasta`) concatenated into
@@ -457,11 +468,19 @@ reported 2026-10-12) by switching to a local build of a recent `prune_graph`
 4. One the RoH run is complete calculate individuals heterozygosity again as in 3_diversity_stats.smk but this time inside and outside RoHs of a specified size
    (zjnolen/polyommatini-temporal-genomics) is the likely starting point.
 5. Effective population size: built as `9a_ContemporaryNE_est.smk` and
-   `9b_ContemporaryNe_pedigree_stability.smk` (see above). Open: which input VCF to use (the config default, the
-   unfiltered 2a notrans jointCall biallelic BCF, is only a starting point;
-   notrans drops transitions), the recombination rate, whether GONE2 `-g 3`
-   (low coverage) is needed for historical populations, and a summary
-   table of the currentNe2 estimates (not built).
+   `9b_ContemporaryNe_pedigree_stability.smk` (see above). As of
+   2026-10-26 the user has switched 9a to the rescaled jointCall biallelic
+   BCF (keeps transitions for the modern samples), modern populations only,
+   and is running 9a. **Next session (user, 2026-10-26): once 9a has
+   finished, cut down the number of 9b subsets** — e.g. a random sample of
+   combinations per subset size with a fixed seed. Nth (n_max 11, n_min 6)
+   is 1024 subsets = 2048 runs, about 5 days on 16 cores at the
+   full-genome Kaz speed. Also then: point the 9b `vcf` at a real 9a
+   population VCF (it still names the notrans Kaz file, which 9a no longer
+   makes; the config has n_max 11 for Nth). Still open: the recombination
+   rate, whether GONE2 `-g 3` (low coverage) is needed for historical
+   populations, and a summary table of the 9a currentNe2 estimates (not
+   built; 9b has its own).
 6. **Mutational load per sample, modern AND historical** (user, 2026-10-19),
    from existing GERP scores and variant-effect prediction (snpEff). Own
    workflow file. Nothing designed yet. What already exists (seen, not

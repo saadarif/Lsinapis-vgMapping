@@ -25,6 +25,9 @@ read_ne <- function(path, id) {
 
 ne <- do.call(rbind, Map(read_ne, files, ids))
 ne$n <- as.integer(subsets$n[match(ne$subset, subsets$subset)])
+# Light colours per subset size, from orange (fewest individuals) to blue
+sizes <- sort(unique(ne$n[ne$n < n_max]))
+size_colours <- setNames(colorRampPalette(c("#fdae6b", "#9ecae1"))(max(length(sizes), 1))[seq_along(sizes)], sizes)
 no_estimate <- setdiff(ids, unique(ne$subset))
 message(length(ids), " subsets, ", length(no_estimate), " without a GONE2 estimate",
 	if (length(no_estimate) > 0) paste0(": ", paste(no_estimate, collapse = ", ")) else "")
@@ -43,8 +46,9 @@ trajectories <- function(part, full) {
 	p <- ggplot(mapping = aes(x = generation, y = ne))
 	if (nrow(part) > 0) {
 		p <- p +
-			geom_line(data = part, aes(group = subset, colour = n), linewidth = 0.3, alpha = 0.5) +
-			scale_colour_gradient(low = "#fdd49e", high = "#9ecae1", breaks = sort(unique(part$n)), name = "individuals")
+			geom_line(data = part, aes(group = subset, colour = factor(n, levels = sizes)), linewidth = 0.4, alpha = 0.7) +
+			scale_colour_manual(values = size_colours, name = "individuals") +
+			guides(colour = guide_legend(override.aes = list(linewidth = 1.5, alpha = 1)))
 	}
 	if (nrow(full) > 0) {
 		p <- p + geom_line(data = full, colour = "black", linewidth = 1.3)
@@ -61,7 +65,6 @@ trajectories <- function(part, full) {
 pdf(snakemake@output[["pdf"]], width = 8, height = 6)
 print(trajectories(part, full))
 if (nrow(part) > 0) {
-	sizes <- sort(unique(part$n), decreasing = TRUE)
 	full_panels <- do.call(rbind, lapply(sizes, function(k) if (nrow(full) > 0) transform(full, n = k) else full))
 	p2 <- trajectories(part, full_panels) +
 		facet_wrap(~ n, labeller = labeller(n = function(k) paste(k, "individuals"))) +

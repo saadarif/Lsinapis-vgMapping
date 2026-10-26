@@ -16,9 +16,9 @@
 #   lighter colours), and currentNe2 Ne against the number of individuals with
 #   a linear regression; plus a table of all currentNe2 estimates.
 #
-# The number of subsets is the sum of C(n_max, n) for n = n_min..n_max, e.g.
-# for n_max = 10: 11 (n_min 9), 56 (8), 176 (7), 386 (6), 638 (5); each is one
-# GONE2 and one currentNe2 run.
+# There are C(n_max, n) subsets of n individuals, e.g. for n_max = 11: 1 of 11,
+# 11 of 10, 55 of 9, 165 of 8, 330 of 7, 462 of 6, so 1024 subsets in total
+# with n_min = 6. Each is one GONE2 and one currentNe2 run.
 #
 # The VCF's sample names are read when the workflow is parsed (to list the
 # subsets), so the VCF must exist before this workflow is switched on: run 9a

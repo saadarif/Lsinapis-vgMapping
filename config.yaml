@@ -198,9 +198,10 @@ params:
     # Multi-sample VCF (.vcf.gz, .vcf or .bcf), modern and/or historical samples.
     # Results go in results/contemporary_ne/<file name without extension>/, so
     # another VCF gives another folder. One path, or a list of paths.
-    vcf: "results/genotyping_notrans/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic.bcf"
+    #usiing rescaled vcfs as these have transitions for modern samples as well
+    vcf: "results/genotyping_rescaled/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.rescaled.biallelic.bcf"
     poplist: "Pops_GTS.txt"    # sample_id and population, no header
-    populations: ["Dev", "Kaz", "Nth", "Spa", "Swe"]
+    populations: ["Dev", "Kaz", "Nth", "Spa", "Swe"] #Only modern samples used for now
     maxMissing: [0.0, 0.1, 0.2] # max fraction of missing genotypes per site within each population.
                                 # GONE2 drops SNPs with >= 20% missing by itself.
     rec_rate: 7.4              # cM/Mb, -r of GONE2 and currentNe2 (7.4 = run_roh rec_rate 7.4e-8 per bp)
@@ -217,9 +218,11 @@ params:
     # the workflow is parsed). Results in
     # results/contemporary_ne_stability/<file name without extension>/.
     vcf: "results/contemporary_ne/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic/population_vcfs/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic.Kaz.fmiss0.2.mac2.vcf.gz"
-    n_max: 10      # number of individuals in the VCF (checked against it)
-    n_min: 8       # smallest subset; every subset of n_min..n_max individuals is run.
-                   # Subsets for n_max 10: 11 (n_min 9), 56 (8), 176 (7), 386 (6), 638 (5)
+    n_max: 11      # number of individuals in the VCF (checked against it)
+    n_min: 6       # smallest subset; every subset of n_min..n_max individuals is run.
+                   # Subsets of each size n: C(n_max, n). For n_max 11: 1 of 11 (all),
+                   # 11 of 10, 55 of 9, 165 of 8, 330 of 7, 462 of 6, so 1024 in total
+                   # with n_min 6. Each subset is one GONE2 and one currentNe2 run.
     x: false       # true: GONE2 and currentNe2 both run with -x
     rec_rate: 7.4  # cM/Mb, -r of GONE2 and currentNe2
     gone2: /mnt/sda/saad/tools/GONE2/gone2

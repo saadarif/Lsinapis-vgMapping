@@ -55,23 +55,31 @@ est <- est[, c("subset", "n", "dropped", "estimate", "ne", "ci50_lower", "ci50_u
 write.table(est, snakemake@output[["tsv"]], sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
 ok <- est[!is.na(est$ne), ]
+# Panels in the order of the currentNe2 output (whole genome first)
+estimate_order <- unique(ok$estimate)
+ok$estimate <- factor(ok$estimate, levels = estimate_order)
 n_none <- length(setdiff(ids, unique(ok$subset)))
 message(length(ids), " subsets, ", n_none, " without a currentNe2 estimate")
 
 # Linear regression per estimate type, when there are at least 3 estimates
 # over at least 2 subset sizes
-fits <- do.call(rbind, lapply(split(ok, ok$estimate), function(d) {
+fits <- do.call(rbind, lapply(split(ok, ok$estimate, drop = TRUE), function(d) {
 	if (nrow(d) < 3 || length(unique(d$n)) < 2) {
-		return(data.frame(estimate = d$estimate[1], label = "too few estimates for a regression"))
+		return(data.frame(estimate = as.character(d$estimate[1]), label = "too few estimates for a regression"))
 	}
 	f <- summary(lm(ne ~ n, data = d))
 	cf <- f$coefficients
 	message(d$estimate[1], ": Ne = ", signif(cf[1, 1], 4), " + ", signif(cf[2, 1], 4), " * n, R2 ", signif(f$r.squared, 3), ", p ", signif(cf[2, 4], 3))
 	data.frame(
-		estimate = d$estimate[1],
-		label = sprintf("Ne = %.4g %s %.4g n\nR² = %.3f, p = %.3g", cf[1, 1], ifelse(cf[2, 1] < 0, "-", "+"), abs(cf[2, 1]), f$r.squared, cf[2, 4])
+		estimate = as.character(d$estimate[1]),
+		label = sprintf("Ne = %.4g %s %.4g n, R² = %.3f, p = %.3g", cf[1, 1], ifelse(cf[2, 1] < 0, "-", "+"), abs(cf[2, 1]), f$r.squared, cf[2, 4])
 	)
 }))
+# The regression goes in each panel's title, where it cannot hide any points
+strip_labels <- setNames(as.character(estimate_order), estimate_order)
+if (!is.null(fits)) {
+	strip_labels[fits$estimate] <- paste0(fits$estimate, "\n", fits$label)
+}
 
 subtitle <- paste0(
 	snakemake@params[["subtitle"]],
@@ -85,9 +93,8 @@ if (nrow(ok) > 0) {
 		geom_point(data = ok[ok$n < n_max, ], colour = "#6baed6", alpha = 0.5, size = 1.5,
 			position = position_jitter(width = 0.12, height = 0, seed = 1)) +
 		geom_smooth(method = "lm", formula = y ~ x, colour = "#d1495b", fill = "#d1495b", alpha = 0.15, linewidth = 0.8) +
-		geom_point(data = ok[ok$n == n_max, ], colour = "black", size = 3) +
-		geom_text(data = fits, aes(x = -Inf, y = Inf, label = label), hjust = -0.05, vjust = 1.2, size = 3, inherit.aes = FALSE) +
-		facet_wrap(~ estimate, scales = "free_y", ncol = 1)
+		geom_point(data = ok[ok$n == n_max, ], shape = 21, fill = "black", colour = "white", stroke = 0.8, size = 3.5) +
+		facet_wrap(~ estimate, scales = "free_y", ncol = 1, labeller = as_labeller(strip_labels))
 } else {
 	p <- p + annotate("text", x = n_max, y = 0, label = "No currentNe2 estimate for any subset")
 }
