@@ -35,7 +35,8 @@ snakemake              # actual run
   `2b_call_genotypes_rescaled`, `3_diversity_stats`, `4_relatedness`,
   `5_LD_pruning`, `6a_Strucure_angsdPCA` (typo in filename is intentional/
   established, don't "fix" it without renaming deliberately),
-  `6b_Structure_NGadmix`, `7_FroH_bcftools`, `10a_Wolbachia_screen`,
+  `6b_Structure_NGadmix`, `7_FroH_bcftools`, `9a_ContemporaryNE_est`,
+  `9b_ContemporaryNe_pedigree_stability`, `10a_Wolbachia_screen`,
   `10b_InStrain_Wolbachia_screen`. All `include:`d
   into one global namespace — later files freely reuse Python-level constants
   and functions from earlier ones (e.g. `REF_NAME`, `samples_df`,
@@ -139,7 +140,53 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    low (about 11%) because with `--ignore-homref` it counts one sample's
    non-hom-ref sites; that is expected, not a filter problem.
 
-9. `10a_Wolbachia_screen.smk` (`run_wolbachia_screen`, FALSE in
+9. `9a_ContemporaryNE_est.smk` (`run_contemporary_ne`, FALSE in
+   `config.yaml` until the user starts it) — from a multi-sample VCF named
+   in `params.run_contemporary_ne.vcf` (one path or a list; modern and/or
+   historical samples): per population in `populations` (membership from
+   `poplist`, default `Pops_GTS.txt`) and per `maxMissing` value, a
+   population VCF (samples present in the VCF, tags recomputed, biallelic
+   SNPs, `F_MISSING <= x` within the population, `MAC >= 2`, so singletons
+   and sites monomorphic in the population are gone) + bcftools stats; then
+   GONE2 and currentNe2 (local binaries, paths in config, no conda), each
+   with and without `-x`, same `-r` (`rec_rate`, cM/Mb); `plot_gone2_ne.R`
+   (env `r_ne_plot.yaml`) plots both GONE2 Ne trajectories per population
+   VCF. Results under `results/contemporary_ne/<vcf name>/{population_vcfs,
+   gone2,currentne2}/`, vcf name = file name without `.vcf.gz`/`.vcf`/`.bcf`,
+   which also starts every file name (logs/benchmarks likewise). File stem
+   `<vcf>.<pop>.fmiss<x>.mac2`, then `.gone2.r<rate>.S<seed>.<x|nox>` or
+   `.currentne2.r<rate>.<x|nox>`. Real-repo dry run with the toggle on: 96
+   jobs, all new. Tested end-to-end (scratch Snakefile defining
+   `POPLIST_NT` and including only this file) on chromosomes 1, 4, 5 of
+   the 2a notrans jointCall biallelic BCF (567,994 SNPs), Kaz + Dev,
+   maxMissing 0.1/0.2: 27 jobs; population VCFs 64,285-158,772 SNPs; GONE2
+   -x gave no estimate for Dev (6 samples) and the plot says so; currentNe2
+   nox Ne 26.5-35.2 (Dev), 565-566 (Kaz), -x no estimate for any. Not run
+   on the real data yet. (Built as `9_ContemporaryNE_est.smk`, renamed to 9a
+   the same day at the user's request.)
+10. `9b_ContemporaryNe_pedigree_stability.smk` (`run_ne_stability`, FALSE)
+   — stability of GONE2/currentNe2 to sample size and composition. One
+   population's VCF (`params.run_ne_stability.vcf`, e.g. a 9a population
+   VCF); GONE2 and currentNe2 on the full set of `n_max` individuals and on
+   every subset of `n_min..n_max` individuals (all combinations), all with
+   `-x` or all without (`x`), same `rec_rate` and GONE2 seed. Each job
+   writes its subset VCF (samples, then `MAC >= 2` again; missingness not
+   re-filtered) into its own `tmp.*` folder, so the rules use the bcftools
+   env with the local binaries. Subsets named `n<size>.c<number>`
+   (itertools.combinations over sorted sample names, widths fixed by
+   `n_max`, so changing `n_min` reuses runs), listed in
+   `<vcf>.n<min>-<max>.subsets.tsv`. Plots (`plot_ne_stability_gone2.R`:
+   all trajectories, full set bold black, smaller subsets light colours by
+   n, page 2 one panel per n; `plot_ne_stability_currentne2.R`: Ne vs n,
+   linear regression with equation/R²/p, one panel per currentNe2 estimate
+   type) and a table of all currentNe2 estimates. Results under
+   `results/contemporary_ne_stability/<vcf name>/{gone2,currentne2,plots}/`.
+   The VCF's sample names are read at parse time (gzip header read, also
+   for BCF), so the VCF must exist before the toggle is on (clear error
+   otherwise); `n_max` must equal its sample count, `n_min >= 3`.
+   Subsets: sum of C(n_max, n), n = n_min..n_max (n_max 10: 11, 56, 176,
+   386, 638 for n_min 9..5).
+11. `10a_Wolbachia_screen.smk` (`run_wolbachia_screen`, FALSE in
    `config.yaml` until the full run is started) — the nuclear reference +
    mtDNA + Wolbachia FASTAs (top-level `mtdna_fasta` / `wolbachia_fasta`) concatenated into
    `results/wolbachia_screening/bwa_mapping/reference/{REF_NAME}_mtWolb.fa`
@@ -152,7 +199,7 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    breadth / depth ratios
    (`results/wolbachia_screening/wolbachia_screen/wolbachia_screen.*.coverage_{long,wide}.tsv`).
    No infection call. Tested end-to-end on a slice (see session 2026-10-19).
-10. `10b_InStrain_Wolbachia_screen.smk` (`run_instrain_wolbachia`, FALSE) —
+12. `10b_InStrain_Wolbachia_screen.smk` (`run_instrain_wolbachia`, FALSE) —
    the user's spec: per sample, all paired-end runs (every lane and index)
    in one bowtie2 call to nuclear + mtDNA + Wolbachia (its own copy,
    `results/wolbachia_screening/bowtie2_mapping/reference/{REF_NAME}_mtWolb.fa`),
@@ -176,6 +223,50 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
      `benchmarks/wolbachia_screening/` (user, 2026-10-19), each with the
      same subfolders as before (`bwa_mapping`, `wolbachia_screen`,
      `bowtie2_mapping`, `instrain_wolbachia`).
+
+**Session 2026-10-26 (stages 9a, 9b), things not obvious from the code:**
+- The user named 9b `9b_ConctemporaryNe_pedigree_stability`; Claude read
+  "Conctemporary" as a typo and used `ContemporaryNe`.
+- A first design, `9a_ModernVCFs_for_Ne` (a new modern-only joint call
+  with transitions kept), was built and deleted the same day at the user's
+  request; the user wants Ne from a VCF they choose instead.
+- Installed binaries (user, 2026-10-26): GONE2 v3.0 (Jul 2026) at
+  `/mnt/sda/saad/tools/GONE2/gone2`, currentNe2 v2.0 at
+  `/mnt/sda/saad/tools/currentNe2/currentne2`; both compiled with
+  MAXLOCI 2,000,000, MAXIND 2000, MAXCROMO 1000, and both stop with
+  "Reached max number of loci" past that. Not in bioconda, so no conda env.
+- Both read only an uncompressed file whose name ends in `.vcf`, both
+  default to 64 threads (so `-t` is always set), `-r` is in cM/Mb.
+  Their VCF readers need FORMAT to start with GT, read `./.` as missing,
+  skip sites with ALT `.`, stop on alleles other than A/C/G/T (so
+  multiallelic `A,G` is fatal), and count AC=0 sites towards MAXLOCI.
+  GONE2 and currentNe2 both drop SNPs with >= 20% missing by themselves.
+- currentNe2 writes `<input>_currentNe2_progress.tmp` next to its input
+  (the -x and nox jobs on one VCF would collide), and its `-q` (not in the
+  help) suppresses the output file entirely. GONE2 writes
+  `<-o>_GONE_progress.tmp` and `<-o>_d2.txt` while running. Hence each job
+  decompresses the VCF into its own `tmp.*` folder in the step directory.
+- GONE2 `-x` subsamples to 20,000 SNPs by default and writes
+  `_GONE2_mix_{Ne,d2,STATS}` (Ne column `N_T`; without -x `Ne_diploids`);
+  its STATS gives the number of subpopulations, Fst and migration rate.
+  When -x does not converge it writes only STATS ("NOT ESTIMATED") and
+  exits 0; when there are too few recombination bins it exits 1 with only
+  STATS. The rule treats both as "no estimate" (header-only Ne/d2, note in
+  the log); only a missing STATS fails the job. currentNe2 -x that cannot
+  estimate ("LD is smaller for linked than for unlinked markers") still
+  exits 0 and writes its report. GONE2 runs differ without `-S`
+  (`gone2_seed`, default 1); the result also depends on the thread count.
+- `rec_rate: 7.4` cM/Mb in the config is `run_roh`'s 7.4e-8 per bp
+  converted, not a separate estimate.
+- Full-genome test, Kaz (10 samples) from the 2a notrans jointCall
+  biallelic `fmiss0.2` VCF, `F_MISSING <= 0.2` in Kaz, MAC >= 2: 417,773
+  SNPs, 45 chromosomes, 8 threads each. GONE2 nox 49 s / 4 GB, GONE2 -x
+  5.4 min (3 subpopulations, Fst 0.030, migration 0.0039), currentNe2 about
+  14 min / 50 MB each mode; currentNe2 nox Ne 280 (90% CI 93-842), -x no
+  estimate. Sites monomorphic within a population are common after a
+  split, hence MAC >= 2 (the user asked for singletons to be removed;
+  Claude also removed monomorphic sites, which carry no LD information and
+  count towards MAXLOCI).
 
 **Session 2026-10-19 (stages 10a, 10b), things not obvious from the code:**
 - The user wants three separate workflows: the bwa/mosdepth screen (10a),
@@ -346,8 +437,8 @@ reported 2026-10-12) by switching to a local build of a recent `prune_graph`
    (`snakemake -R modern_dedup_libraries`), then run 10a and 10b on the real
    data (both toggles FALSE until then) and look at the coverage tables,
    then come back for the stages below. Nothing for an infection call is
-   built yet. Check at the start of the next session whether these runs
-   finished.
+   built yet. As of 2026-10-26 the rerun is done and 10a/10b are not run
+   yet; check at the start of the next session whether they have finished.
 2. **Wolbachia/mtDNA consensus + trees**, its own workflow, for modern AND
    historical samples (historical mapping for the screen is not built yet).
    Earlier proposal (2026-10-12, not confirmed): infected / uninfected sets
@@ -365,10 +456,12 @@ reported 2026-10-12) by switching to a local build of a recent `prune_graph`
    bins; the reference repo's `plot_Froh.R`
 4. One the RoH run is complete calculate individuals heterozygosity again as in 3_diversity_stats.smk but this time inside and outside RoHs of a specified size
    (zjnolen/polyommatini-temporal-genomics) is the likely starting point.
-5. Effective population size with GONE2, modern samples only, as its own
-   new workflow file. Nothing designed or checked yet: input genotype set,
-   per-population grouping, and whether GONE2 has a bioconda/conda-forge
-   package (check before choosing `conda:` vs `container:`) are all open.
+5. Effective population size: built as `9a_ContemporaryNE_est.smk` and
+   `9b_ContemporaryNe_pedigree_stability.smk` (see above). Open: which input VCF to use (the config default, the
+   unfiltered 2a notrans jointCall biallelic BCF, is only a starting point;
+   notrans drops transitions), the recombination rate, whether GONE2 `-g 3`
+   (low coverage) is needed for historical populations, and a summary
+   table of the currentNe2 estimates (not built).
 6. **Mutational load per sample, modern AND historical** (user, 2026-10-19),
    from existing GERP scores and variant-effect prediction (snpEff). Own
    workflow file. Nothing designed yet. What already exists (seen, not

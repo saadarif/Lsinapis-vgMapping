@@ -37,6 +37,8 @@ run_admixture: TRUE #NGSadmix for K = 1..max_k (replicated to convergence) + eva
 run_roh: TRUE #runs ROH on specified vcf files
 run_wolbachia_screen: FALSE #modern samples mapped with bwa mem to nuclear + mtDNA + Wolbachia, then depth/breadth per genome with mosdepth
 run_instrain_wolbachia: FALSE #same samples mapped with bowtie2 (all runs at once) to the same reference, then inStrain profile against the Wolbachia FASTA
+run_contemporary_ne: FALSE #per-population VCFs from the VCF under params: run_contemporary_ne, then GONE2 and currentNe2 with and without -x
+run_ne_stability: FALSE #GONE2 and currentNe2 on every subset of n_min..n_max individuals of one population VCF (the VCF must exist already)
 
 # --- Subsampling ---
 #Ids of samples in quotes that need to be susbsampled
@@ -191,6 +193,41 @@ params:
     threads: 8                 # inStrain -p
     bowtie2_extra: ""          # any further bowtie2 flags, e.g. "--very-sensitive"
     extra: ""                  # any further inStrain profile flags, e.g. "--skip_plot_generation"
+
+  run_contemporary_ne:
+    # Multi-sample VCF (.vcf.gz, .vcf or .bcf), modern and/or historical samples.
+    # Results go in results/contemporary_ne/<file name without extension>/, so
+    # another VCF gives another folder. One path, or a list of paths.
+    vcf: "results/genotyping_notrans/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic.bcf"
+    poplist: "Pops_GTS.txt"    # sample_id and population, no header
+    populations: ["Dev", "Kaz", "Nth", "Spa", "Swe"]
+    maxMissing: [0.0, 0.1, 0.2] # max fraction of missing genotypes per site within each population.
+                                # GONE2 drops SNPs with >= 20% missing by itself.
+    rec_rate: 7.4              # cM/Mb, -r of GONE2 and currentNe2 (7.4 = run_roh rec_rate 7.4e-8 per bp)
+    gone2: /mnt/sda/saad/tools/GONE2/gone2
+    currentne2: /mnt/sda/saad/tools/currentNe2/currentne2
+    gone2_seed: 1              # GONE2 -S; same seed and threads give the same result
+    gone2_extra: ""            # further GONE2 flags, e.g. "-g 3" for low-coverage data, "-s 20000"
+    currentne2_extra: ""       # further currentNe2 flags, e.g. "-s 100000"
+    threads: 8                 # per GONE2 / currentNe2 run
+
+  run_ne_stability:
+    # One population's VCF, e.g. a population VCF from run_contemporary_ne. It must
+    # exist before run_ne_stability is switched on (its sample names are read when
+    # the workflow is parsed). Results in
+    # results/contemporary_ne_stability/<file name without extension>/.
+    vcf: "results/contemporary_ne/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic/population_vcfs/merged.all.DTOLREF.sitefilt.bQ20.mq30.snps5.noIndel.Q30.dp6-30.AB.jointCall.notrans.biallelic.Kaz.fmiss0.2.mac2.vcf.gz"
+    n_max: 10      # number of individuals in the VCF (checked against it)
+    n_min: 8       # smallest subset; every subset of n_min..n_max individuals is run.
+                   # Subsets for n_max 10: 11 (n_min 9), 56 (8), 176 (7), 386 (6), 638 (5)
+    x: false       # true: GONE2 and currentNe2 both run with -x
+    rec_rate: 7.4  # cM/Mb, -r of GONE2 and currentNe2
+    gone2: /mnt/sda/saad/tools/GONE2/gone2
+    currentne2: /mnt/sda/saad/tools/currentNe2/currentne2
+    gone2_seed: 1  # GONE2 -S, the same for every subset
+    gone2_extra: ""
+    currentne2_extra: ""
+    threads: 8     # per GONE2 / currentNe2 run
 
 
 # --- Resource Allocation ---

@@ -89,6 +89,14 @@ properties:
     type: boolean
     description: "Same samples mapped with bowtie2 (all runs per sample at once), duplicates removed, inStrain profile against the Wolbachia FASTA."
 
+  run_contemporary_ne:
+    type: boolean
+    description: "Per-population VCFs from a given VCF, then GONE2 and currentNe2 with and without -x."
+
+  run_ne_stability:
+    type: boolean
+    description: "GONE2 and currentNe2 on every subset of n_min..n_max individuals of one population VCF."
+
   # --- Subsampling ---
   subsample_samples:
     type: array
@@ -396,6 +404,114 @@ properties:
           extra:
             type: string
             default: ""
+
+      run_contemporary_ne:
+        type: object
+        properties:
+          vcf:
+            description: "Multi-sample VCF (.vcf.gz, .vcf or .bcf), or a list of them."
+            oneOf:
+              - type: string
+              - type: array
+                items:
+                  type: string
+          poplist:
+            type: string
+            description: "Two-column file (sample_id, population), no header; defaults to params: run_genotyping: poplist."
+          populations:
+            type: array
+            items:
+              type: string
+              pattern: "^[A-Za-z0-9_-]+$"
+            minItems: 1
+          maxMissing:
+            description: "Maximum fraction of missing genotypes per site within a population; one value or a list."
+            oneOf:
+              - type: number
+                minimum: 0
+                maximum: 1
+              - type: array
+                items:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+            default: [0.0]
+          rec_rate:
+            type: number
+            exclusiveMinimum: 0
+            description: "Constant recombination rate in cM/Mb (-r of GONE2 and currentNe2)."
+          gone2:
+            type: string
+            description: "Path to the gone2 executable."
+          currentne2:
+            type: string
+            description: "Path to the currentne2 executable."
+          gone2_seed:
+            type: integer
+            default: 1
+          gone2_extra:
+            type: string
+            default: ""
+          currentne2_extra:
+            type: string
+            default: ""
+          threads:
+            type: integer
+            minimum: 1
+            default: 8
+        required:
+          - vcf
+          - populations
+          - rec_rate
+          - gone2
+          - currentne2
+
+      run_ne_stability:
+        type: object
+        properties:
+          vcf:
+            type: string
+            description: "One population's VCF (.vcf.gz, .vcf or .bcf); must exist before the workflow is switched on."
+          n_max:
+            type: integer
+            minimum: 3
+            description: "Number of individuals in the VCF."
+          n_min:
+            type: integer
+            minimum: 3
+            description: "Smallest subset size; every subset of n_min..n_max individuals is run."
+          x:
+            type: boolean
+            default: false
+            description: "Run GONE2 and currentNe2 with -x."
+          rec_rate:
+            type: number
+            exclusiveMinimum: 0
+            description: "Constant recombination rate in cM/Mb (-r of GONE2 and currentNe2)."
+          gone2:
+            type: string
+          currentne2:
+            type: string
+          gone2_seed:
+            type: integer
+            default: 1
+          gone2_extra:
+            type: string
+            default: ""
+          currentne2_extra:
+            type: string
+            default: ""
+          threads:
+            type: integer
+            minimum: 1
+            default: 8
+        required:
+          - vcf
+          - n_max
+          - n_min
+          - rec_rate
+          - gone2
+          - currentne2
 
   threads_mapping:
     type: integer

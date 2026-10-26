@@ -271,6 +271,18 @@ def get_final_targets(wildcards):
     if config.get("run_instrain_wolbachia", False):
         targets.extend(IS_TARGETS)
 
+    # 16. Add recent / contemporary Ne targets (per-population VCFs from the VCF
+    #     under params: run_contemporary_ne, then GONE2 and currentNe2 with and
+    #     without -x). Assembled in the rule file.
+    if config.get("run_contemporary_ne", False):
+        targets.extend(CNE_TARGETS)
+
+    # 17. Add Ne stability targets (GONE2 and currentNe2 on every subset of
+    #     n_min..n_max individuals of one population VCF, plots and a summary
+    #     table). Assembled in the rule file.
+    if config.get("run_ne_stability", False):
+        targets.extend(NES_TARGETS)
+
     return targets
 
 #ADD rules here
@@ -284,6 +296,8 @@ include: "workflow/rules/5_LD_pruning.smk" #ngsLD + prune_graph: unlinked-SNP be
 include: "workflow/rules/6a_Strucure_angsdPCA.smk" #PCA with PCAngsd on the LD-pruned beagle file
 include: "workflow/rules/6b_Structure_NGadmix.smk" #NGSadmix (K = 1..max_k, replicated to convergence) + evalAdmix on the same beagle file as the PCA
 include: "workflow/rules/7_FroH_bcftools.smk" #runs of homozygosity with bcftools roh on the biallelic BCFs from the genotyping workflows
+include: "workflow/rules/9a_ContemporaryNE_est.smk" #per-population VCFs from a given VCF, then GONE2 (Ne trajectory) and currentNe2 (contemporary Ne), with and without -x
+include: "workflow/rules/9b_ContemporaryNe_pedigree_stability.smk" #GONE2 and currentNe2 on every subset of n_min..n_max individuals of one population VCF
 include: "workflow/rules/10a_Wolbachia_screen.smk" #bwa mem competitive mapping to nuclear + mtDNA + Wolbachia, depth/breadth per genome with mosdepth
 include: "workflow/rules/10b_InStrain_Wolbachia_screen.smk" #bowtie2 to the same reference, inStrain profile against the Wolbachia FASTA
 
