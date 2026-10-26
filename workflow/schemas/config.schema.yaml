@@ -436,6 +436,11 @@ properties:
                   minimum: 0
                   maximum: 1
             default: [0.0]
+          minDP:
+            type: integer
+            minimum: 0
+            default: 0
+            description: "Genotypes with FORMAT/DP below this are set to missing before the maxMissing filter; 0 = off. Adds .minDP<N> to file names."
           rec_rate:
             type: number
             exclusiveMinimum: 0

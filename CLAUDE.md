@@ -145,7 +145,8 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    in `params.run_contemporary_ne.vcf` (one path or a list; modern and/or
    historical samples): per population in `populations` (membership from
    `poplist`, default `Pops_GTS.txt`) and per `maxMissing` value, a
-   population VCF (samples present in the VCF, tags recomputed, biallelic
+   population VCF (samples present in the VCF, optionally genotypes with
+   FORMAT/DP < `minDP` set to missing, tags recomputed, biallelic
    SNPs, `F_MISSING <= x` within the population, `MAC >= 2`, so singletons
    and sites monomorphic in the population are gone) + bcftools stats; then
    GONE2 and currentNe2 (local binaries, paths in config, no conda), each
@@ -269,6 +270,14 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
   (`gone2_seed`, default 1); the result also depends on the thread count.
 - `rec_rate: 7.4` cM/Mb in the config is `run_roh`'s 7.4e-8 per bp
   converted, not a separate estimate.
+- 9a `minDP` (user's request, added after the user had started 9a runs):
+  default 0 = off, and `.minDP<N>` goes into the file names only when set,
+  so names and outputs from before the option are unchanged. The depth
+  filter runs before fill-tags and the missingness filter, so removed
+  genotypes count as missing. It is only stricter than the genotyping
+  filter above that filter's minimum (the 2a/2b BCFs are dp6-30). On Dev,
+  chromosome 47 of the rescaled jointCall biallelic BCF, maxMissing 0.0:
+  15,189 SNPs without, 1,540 with minDP 10 (7,062 at maxMissing 0.2).
 - Full-genome test, Kaz (10 samples) from the 2a notrans jointCall
   biallelic `fmiss0.2` VCF, `F_MISSING <= 0.2` in Kaz, MAC >= 2: 417,773
   SNPs, 45 chromosomes, 8 threads each. GONE2 nox 49 s / 4 GB, GONE2 -x

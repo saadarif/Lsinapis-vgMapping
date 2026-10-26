@@ -204,6 +204,10 @@ params:
     populations: ["Dev", "Kaz", "Nth", "Spa", "Swe"] #Only modern samples used for now
     maxMissing: [0.0] # max fraction of missing genotypes per site within each population.
                                 # GONE2 drops SNPs with >= 20% missing by itself.
+    minDP: 0                   # genotypes with FORMAT/DP below this set to missing before the
+                                # maxMissing filter; 0 = off. Adds .minDP<N> to the file names.
+                                # Only stricter than the genotyping depth filter if above it
+                                # (the 2a/2b BCFs already have genotypes outside dp6-30 missing).
     rec_rate: 7.4              # cM/Mb, -r of GONE2 and currentNe2 (7.4 = run_roh rec_rate 7.4e-8 per bp)
     gone2: /mnt/sda/saad/tools/GONE2/gone2
     currentne2: /mnt/sda/saad/tools/currentNe2/currentne2

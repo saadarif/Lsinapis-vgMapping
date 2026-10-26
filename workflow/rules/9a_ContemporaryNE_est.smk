@@ -3,9 +3,10 @@
 #   From a multi-sample VCF given in the config (modern and/or historical
 #   samples), for every population and missingness value listed:
 #
-#   1. Population VCF: the population's samples, biallelic SNPs with at most
-#      maxMissing missing genotypes in that population and a minor allele count
-#      of at least 2 (removes singletons, and sites that are monomorphic in the
+#   1. Population VCF: the population's samples, optionally genotypes below
+#      minDP set to missing, biallelic SNPs with at most maxMissing missing
+#      genotypes in that population and a minor allele count of at least 2
+#      (removes singletons, and sites that are monomorphic in the
 #      population), then bcftools stats
 #   2. GONE2 (Ne over the last 150 generations), run with and without -x
 #      (-x: sample from a metapopulation of equal-sized subpopulations), and a
@@ -52,6 +53,10 @@ CNE_GONE2_SEED = CNE_PARAMS.get("gone2_seed", 1)
 CNE_GONE2_EXTRA = CNE_PARAMS.get("gone2_extra", "")
 CNE_CURRENTNE2_EXTRA = CNE_PARAMS.get("currentne2_extra", "")
 CNE_THREADS = CNE_PARAMS.get("threads", 8)
+# Genotypes below this depth (FORMAT/DP) are set to missing in the population
+# VCFs, before the missingness filter. 0 = off (file names then have no
+# .minDP tag, as before the option existed).
+CNE_MIN_DP = CNE_PARAMS.get("minDP", 0) or 0
 
 CNE_DIR = "results/contemporary_ne"
 CNE_LOG_DIR = "logs/contemporary_ne"
@@ -95,6 +100,13 @@ if config.get("run_contemporary_ne", False):
     except (TypeError, ValueError):
         print(f"\nERROR: params: run_contemporary_ne: rec_rate must be a positive number (cM/Mb), not '{CNE_REC_RATE}'.\n")
         sys.exit(1)
+    try:
+        CNE_MIN_DP = int(str(CNE_MIN_DP))
+        if CNE_MIN_DP < 0:
+            raise ValueError
+    except ValueError:
+        print(f"\nERROR: params: run_contemporary_ne: minDP must be a whole number >= 0 (0 = off), not '{CNE_MIN_DP}'.\n")
+        sys.exit(1)
     for _key, _exe in (("gone2", CNE_GONE2), ("currentne2", CNE_CURRENTNE2)):
         if not (os.path.isfile(_exe) and os.access(_exe, os.X_OK)):
             print(f"\nERROR: params: run_contemporary_ne: {_key} '{_exe}' is not an executable file.\n")
@@ -128,8 +140,9 @@ CNE_CONSTRAINTS = {
 }
 
 # Folder and file name stem of one population VCF; everything downstream adds to it
-CNE_POP_STEM = "{cne_vcf}/population_vcfs/{cne_vcf}.{cne_pop}.fmiss{cne_miss}.mac2"
-CNE_RUN_STEM = "{cne_vcf}.{cne_pop}.fmiss{cne_miss}.mac2"
+CNE_DP_TAG = f".minDP{CNE_MIN_DP}" if CNE_MIN_DP else ""
+CNE_POP_STEM = "{cne_vcf}/population_vcfs/{cne_vcf}.{cne_pop}" + CNE_DP_TAG + ".fmiss{cne_miss}.mac2"
+CNE_RUN_STEM = "{cne_vcf}.{cne_pop}" + CNE_DP_TAG + ".fmiss{cne_miss}.mac2"
 
 # Requested from the Snakefile target list (section 16)
 CNE_TARGETS = []
@@ -179,9 +192,12 @@ rule cne_population_samples:
 
 rule cne_population_vcf:
     """
-    One population's samples, INFO tags (AC, AN, MAF, F_MISSING, ...)
-    recomputed for them, then biallelic SNPs with F_MISSING <= {cne_miss}
-    and a minor allele count >= 2 in the population.
+    One population's samples; with minDP set, genotypes with FORMAT/DP below
+    it set to missing (bcftools +setGT, as in 2a); INFO tags (AC, AN, MAF,
+    F_MISSING, ...) recomputed for them; then biallelic SNPs with F_MISSING
+    <= {cne_miss} and a minor allele count >= 2 in the population. The depth
+    filter comes first, so the missingness filter counts the genotypes it
+    removed.
     """
     input:
         vcf = lambda wildcards: CNE_VCF_PATHS[wildcards.cne_vcf],
@@ -192,6 +208,11 @@ rule cne_population_vcf:
         stats = f"{CNE_DIR}/{CNE_POP_STEM}.vcf.gz.stats",
     wildcard_constraints:
         **CNE_CONSTRAINTS,
+    params:
+        min_dp = (
+            f"bcftools +setGT -Ou -- -t q -n . -i 'FMT/DP<{CNE_MIN_DP}' | "
+            if CNE_MIN_DP else ""
+        ),
     log: f"{CNE_LOG_DIR}/{{cne_vcf}}/population_vcfs/population_vcf_{CNE_RUN_STEM}.log"
     benchmark: f"{CNE_BENCH_DIR}/{{cne_vcf}}/population_vcfs/population_vcf_{CNE_RUN_STEM}.benchmark"
     conda: "../envs/bcftools121.yaml"
@@ -199,6 +220,7 @@ rule cne_population_vcf:
     shell:
         """
         (bcftools view -S {input.samples} -Ou {input.vcf} | \
+            {params.min_dp} \
             bcftools +fill-tags -Ou -- -t all | \
             bcftools view --threads {threads} -v snps -m 2 -M 2 \
                 -i 'F_MISSING<={wildcards.cne_miss} && MAC>=2' -Oz -o {output.vcf}) 2> {log}
