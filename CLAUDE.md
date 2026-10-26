@@ -155,7 +155,7 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
    VCF. Results under `results/contemporary_ne/<vcf name>/{population_vcfs,
    gone2,currentne2}/`, vcf name = file name without `.vcf.gz`/`.vcf`/`.bcf`,
    which also starts every file name (logs/benchmarks likewise). File stem
-   `<vcf>.<pop>.fmiss<x>.mac2`, then `.gone2.r<rate>.S<seed>.<x|nox>` or
+   `<vcf>.<pop>[.minDP<N>].fmiss<x>.mac2`, then `.gone2.r<rate>.S<seed>.<x|nox>` or
    `.currentne2.r<rate>.<x|nox>`. Real-repo dry run with the toggle on: 96
    jobs, all new. Tested end-to-end (scratch Snakefile defining
    `POPLIST_NT` and including only this file) on chromosomes 1, 4, 5 of
@@ -292,6 +292,30 @@ Built and wired into `Snakefile`/`config.yaml`, in dependency order:
   split, hence MAC >= 2 (the user asked for singletons to be removed;
   Claude also removed monomorphic sites, which carry no LD information and
   count towards MAXLOCI).
+- Later the same day the user stopped a 9a run and asked for only
+  singletons to be removed. Claude switched 9a and 9b to `MAC != 1`
+  (monomorphic sites kept, tag `.noSingletons`); after the findings below
+  the user chose to go back to `MAC >= 2` / `.mac2`, so the code is as
+  before. MAC >= 2 already kept doubletons; the only sites it removes beyond
+  singletons are monomorphic ones. Findings, rescaled jointCall biallelic
+  BCF (8,744,030 SNPs, 60 samples), maxMissing 0.0, sites kept per
+  population, MAC >= 2 -> MAC != 1:
+  minDP 0: Dev 987,109 -> 4,567,652; Kaz 1,288,211 -> 3,930,930; Nth
+  1,098,661 -> 4,378,689; Spa 312,998 -> 825,695; Swe 2,016,913 ->
+  5,190,951. minDP 8: Dev 446,595 -> 2,050,110; Kaz 502,037 -> 1,516,851;
+  Nth 469,765 -> 1,863,676; Spa 22,818 -> 59,372; Swe 1,371,085 ->
+  3,530,649. Past 2,000,000 both binaries print "Reached max number of
+  loci (2000000)" and exit 1 with no output (checked on Swe, minDP 0,
+  MAC >= 2), so 9a's GONE2 job fails (no STATS). Both programs drop
+  monomorphic sites themselves ("SNPs included in the analysis (only
+  polymorphic ...)"): on Dev, chromosomes 1, 4, 5, minDP 8 (55,944 vs
+  260,425 sites), GONE2 nox Ne and d2 were identical, currentNe2 nox
+  between-chromosome Ne identical (19.20), whole-genome Ne 36.54 -> 35.38,
+  because the extra sites widen each chromosome's first-to-last-marker span,
+  which sets the genome size in Morgans (3.73 -> 3.74). currentNe2 took 3x
+  as long. Still open: Swe at minDP 0 (2,016,913 SNPs with MAC >= 2) is
+  over MAXLOCI, so its GONE2/currentNe2 jobs fail unless minDP is raised
+  or the binaries are recompiled with a larger MAXLOCI.
 
 **Session 2026-10-19 (stages 10a, 10b), things not obvious from the code:**
 - The user wants three separate workflows: the bwa/mosdepth screen (10a),
