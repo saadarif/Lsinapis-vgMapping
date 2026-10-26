@@ -183,6 +183,7 @@ params:
     profile_name: "wolbachia"  # in the output file names (no dots)
     stb: ""                    # optional inStrain -s (contig -> genome), for a profile FASTA of several genomes
     genes_fna: ""              # prodigal genes (.fna) for inStrain -g; empty -> predicted from profile_fasta
+                               # TODO: check if exisitng annotations can be used instead
     prodigal_mode: "single"    # "single" for one genome, "meta" for a FASTA of several
     min_mapq: 2                # inStrain --min_mapq: a pair is used if either read has MAPQ > this
                                # but see discussion here about using this param: https://instrain.readthedocs.io/en/latest/important_concepts.html#handling-and-reducing-mis-mapping-reads
