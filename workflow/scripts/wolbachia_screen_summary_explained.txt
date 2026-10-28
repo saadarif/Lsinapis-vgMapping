@@ -1,0 +1,162 @@
+How the columns of wolbachia_screen_summary.py are calculated
+==============================================================
+
+wolbachia_screen_summary.py (rule wolb_coverage_summary in
+workflow/rules/10a_Wolbachia_screen.smk) writes
+
+  wolbachia_screen.<ref>_mtWolb.q<mapq>.bt<thresholds>.coverage_long.tsv
+  wolbachia_screen.<ref>_mtWolb.q<mapq>.bt<thresholds>.coverage_wide.tsv
+
+under results/wolbachia_screening/wolbachia_screen/. It reads no BAMs itself:
+for each sample and genome it combines three small files made by earlier
+rules of 10a.
+
+The worked example throughout is LsKaz10, Wolbachia, from the full run of
+2026-10-28 (mapq 30, breadth thresholds 1, 5, 10), checked against the raw
+mosdepth files.
+
+
+1. Where the inputs come from
+-----------------------------
+
+(a) Per-genome BAMs (rule wolb_split_genome).
+    Reads were mapped with bwa mem to the nuclear, mtDNA and Wolbachia
+    genomes together, duplicates removed (Picard), overlapping mates clipped
+    (bam clipOverlap). That BAM is split into one BAM per genome, keeping
+    reads on the genome's contigs with MAPQ >= 30:
+
+      samtools view -b -q 30 -M -L <genome>.bed
+
+    A read that fits two genomes equally well gets MAPQ 0, so it ends up in
+    none of the per-genome BAMs.
+
+(b) <bam>.nreads.txt (same rule):
+
+      samtools view -c -F 0x904 <per-genome bam>
+
+(c) mosdepth (rule wolb_mosdepth) on the per-genome BAM, with the genome's
+    BED (one interval per contig, from 0 to the contig's end):
+
+      mosdepth -n -Q 30 --by <genome>.bed --thresholds 1,5,10
+
+    The script uses two of its outputs:
+      mosdepth.summary.txt  per contig, "bases" = depth summed over every
+                            position of the contig = the number of read
+                            bases aligned to it.
+      thresholds.bed.gz     per contig, its start and end, and the number of
+                            positions with depth >= 1, >= 5 and >= 10.
+
+    How mosdepth counts depth:
+      - only reads with MAPQ >= 30 (-Q 30, the same filter applied again);
+      - no unmapped, secondary, QC-fail or duplicate reads (its default
+        -F 1796);
+      - soft-clipped bases and deletions are not counted;
+      - where two mates overlap, the overlap counts once (not run in
+        --fast-mode; clipOverlap has already removed such overlaps).
+
+
+2. Long table (one row per sample x genome)
+-------------------------------------------
+
+sample_id, source
+    From the sample sheets. Rows are sorted by source, then by sample_id
+    alphabetically.
+    Example: LsKaz10, modern
+
+genome
+    nuclear, mitochondrion or wolbachia: which input FASTA the contigs came
+    from (concat_screen_reference.py).
+    Example: wolbachia
+
+n_contigs
+    Number of rows in the thresholds file = number of contigs in the
+    genome's BED. Same for every sample.
+    Example: 4
+
+length_bp
+    Sum of (end - start) over the rows of the thresholds file = the total
+    length of the genome's contigs, N gaps included. Same for every sample.
+    Example: 1,438,040
+
+reads_mapq30   (name follows params: run_wolbachia_screen: mapq)
+    The count in .nreads.txt: primary alignments in the per-genome BAM
+    (-F 0x904 drops unmapped, secondary and supplementary records). Each
+    mate counts as one read, so this is not a count of pairs.
+    Example: 579,384
+
+mean_depth
+    Sum of "bases" over the per-contig rows of mosdepth.summary.txt,
+    divided by length_bp.
+    Example: 52,293,651 / 1,438,040 = 36.3645
+
+breadth_1x, breadth_5x, breadth_10x   (one per value in breadth_thresholds)
+    Sum of the 1X (5X, 10X) column of the thresholds file over all contigs,
+    divided by length_bp: the fraction of the genome at depth >= 1 (5, 10).
+    Example: 0.8797, 0.8695, 0.8633
+
+depth_ratio_to_nuclear
+    mean_depth divided by the same sample's nuclear mean_depth. Always 1 on
+    the nuclear row; NA if the nuclear mean depth is 0.
+    Example: 36.3645 / 7.80012 = 4.662
+
+Rows of mosdepth.summary.txt that are skipped:
+  - "total" (and "total_region"): mosdepth's total only covers contigs that
+    had reads, so it would overstate the depth of a genome with uncovered
+    contigs. Contigs without reads add 0 bases to the sum, and length_bp
+    comes from the thresholds file, which lists every contig of the BED.
+  - "<contig>_region": they repeat the per-contig rows, because the BED
+    covers whole contigs.
+
+
+3. Wide table (one row per sample)
+----------------------------------
+
+The same numbers as the long table, for nuclear, mitochondrion and wolbachia
+in that order:
+
+  <genome>_reads_mapq30
+  <genome>_mean_depth
+  <genome>_breadth_1x, <genome>_breadth_5x, <genome>_breadth_10x
+
+n_contigs and length_bp are left out (same for every sample). Then three
+ratios of mean depth:
+
+  depth_ratio_mitochondrion_to_nuclear
+      mtDNA mean_depth / nuclear mean_depth. Same value as the mtDNA row's
+      depth_ratio_to_nuclear in the long table.
+  depth_ratio_wolbachia_to_nuclear
+      Wolbachia mean_depth / nuclear mean_depth. Same value as the
+      Wolbachia row's depth_ratio_to_nuclear in the long table.
+  depth_ratio_wolbachia_to_mitochondrion
+      Wolbachia mean_depth / mtDNA mean_depth. Only in the wide table.
+      Example: 36.3645 / 137.779 = 0.2639
+
+A ratio is NA when the denominator's mean depth is 0.
+
+
+4. Number format
+----------------
+
+Decimal values (depths, breadths, ratios) are printed to 6 significant
+figures (Python "%.6g"), so very small values appear in scientific notation,
+e.g. 3.2e-05. Read counts and lengths are exact integers.
+
+
+5. Things to keep in mind when reading the tables
+-------------------------------------------------
+
+- N gaps count towards length_bp, so nuclear breadth can't reach 1, and
+  mean depth is averaged over positions where no read can map.
+
+- Ratios as copy numbers: each nuclear position is read from two copies in
+  a diploid cell, so Wolbachia/nuclear roughly means Wolbachia genomes per
+  HAPLOID host genome (multiply by 2 for per cell). The nuclear mean also
+  includes the sex chromosomes and unplaced contigs.
+
+- mtDNA coverage is patchy in every sample (run of 2026-10-28). In all 47
+  samples only 35-62% of the 15,959 bp mtDNA has depth >= 1 (LsKaz10: 38%),
+  although the mean depth is 50-1,044x. The most likely cause is that the
+  uncovered parts also match nuclear sequence (NUMTs), so their reads got
+  MAPQ 0 and were dropped; this has not been checked. Because mean_depth
+  averages over the empty part too, the mtDNA mean depth and both ratios
+  that use it are lower than the depth where the mtDNA is actually covered.
