@@ -235,7 +235,7 @@ params:
     gone2_seed: 1  # GONE2 -S, the same for every subset
     gone2_extra: ""
     currentne2_extra: ""
-    threads: 8     # per GONE2 / currentNe2 run
+    threads: 4     # per GONE2 / currentNe2 run
 
 
 # --- Resource Allocation ---
